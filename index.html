@@ -28,6 +28,7 @@
   --sky:#5AA9DE; --sky2:#BFE3F2; --cloud:#FFFFFF; --cloud-op:.92; --orb:#FFF1BC; --orb-op:.95; --stars:0;
   --hill:#A9D28A; --hill2:#71B15A; --hill3:#3F8A47; --roof:#C94B28;
   --handle:#F2B632; --badge:#F7CF5C; --badge-ink:#3B2C00; --tag:#CFEAF5; --tag-ink:#17435E;
+  --hl-fill:rgba(242,182,50,.16); --hl-line:rgba(214,150,20,.85); --ed-line:#C94B28;
   --scrim:rgba(18,40,32,.5); --shadow:0 1px 0 rgba(31,58,46,.05), 0 12px 26px -16px rgba(31,58,46,.5);
   --hero-ink:#FFFFFF; --hero-shadow:0 2px 14px rgba(20,70,110,.45);
   --f-display:'Kaisei Decol','Hiragino Mincho ProN',Georgia,serif;
@@ -43,6 +44,7 @@
     --sky:#0B1428; --sky2:#24375E; --cloud:#3E5480; --cloud-op:.55; --orb:#F3EBC8; --orb-op:1; --stars:1;
     --hill:#24394E; --hill2:#1A3031; --hill3:#122522; --roof:#B5553A;
     --handle:#FFD36E; --badge:#FFD36E; --badge-ink:#2A1F00; --tag:#24405E; --tag-ink:#CFE7F7;
+    --hl-fill:rgba(255,211,110,.14); --hl-line:rgba(255,211,110,.8); --ed-line:#F08A5D;
     --scrim:rgba(0,0,0,.62); --shadow:0 1px 0 rgba(0,0,0,.35), 0 14px 28px -16px rgba(0,0,0,.85);
     --hero-ink:#F7F2DF; --hero-shadow:0 2px 16px rgba(0,0,0,.6);
     color-scheme:dark;
@@ -137,9 +139,10 @@ svg.i{width:22px; height:22px; stroke:currentColor; fill:none; stroke-width:1.9;
 .ed-title .mono{color:var(--muted); font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 .stage{flex:1; min-height:0; position:relative; display:grid; place-items:center; background:var(--surface2); border-radius:22px; overflow:hidden}
 #cvCrop{touch-action:none; display:block; max-width:100%; max-height:100%}
-#cvOut{width:100%; height:100%; object-fit:contain; display:block; padding:10px}
+#cvOut{width:100%; height:100%; object-fit:contain; display:block; padding:10px; touch-action:none}
+#cvOut.erasing{cursor:crosshair}
 .panel{padding:10px 0 calc(env(safe-area-inset-bottom, 0px) + 8px)}
-.tabs{display:grid; grid-template-columns:repeat(3,1fr); gap:4px; padding:4px; background:var(--surface2); border-radius:999px}
+.tabs{display:grid; grid-template-columns:repeat(4,1fr); gap:4px; padding:4px; background:var(--surface2); border-radius:999px}
 .tab{min-height:40px; border:0; border-radius:999px; background:transparent; color:var(--muted); font-weight:700; font-size:14px; cursor:pointer}
 .tab[aria-selected="true"]{background:var(--surface); color:var(--ink); box-shadow:var(--shadow)}
 .tabbody{display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:12px 0 4px; min-height:68px}
@@ -163,6 +166,44 @@ svg.i{width:22px; height:22px; stroke:currentColor; fill:none; stroke-width:1.9;
 .sheet-box .row .btn{flex:1}
 #sheetInput{border:0; border-radius:14px; padding:0 14px; min-height:48px; background:var(--surface2); font-family:var(--f-body); font-size:16px}
 #sheetText{width:100%; border:0; border-radius:14px; padding:12px 14px; background:var(--surface2); color:var(--ink); font:13px/1.5 var(--f-body); resize:none}
+/* Infos du document */
+.facts{display:flex; flex-wrap:wrap; gap:6px 22px; padding:0 4px 8px; margin:0}
+.facts div{min-width:0}
+.facts dt{font-size:11px; color:var(--muted); font-weight:700; letter-spacing:.06em; text-transform:uppercase}
+.facts dd{margin:0; font-weight:700; font-size:15px; font-variant-numeric:tabular-nums; overflow-wrap:anywhere}
+.pill.soft{background:var(--tag); color:var(--tag-ink); box-shadow:none}
+
+/* Menus et feuilles */
+.bottom{align-items:flex-end; padding-bottom:calc(env(safe-area-inset-bottom, 0px) + 16px)}
+.menu-list{display:flex; flex-direction:column; gap:6px}
+.menu-item{display:flex; align-items:center; gap:12px; min-height:52px; padding:0 16px; border:0; border-radius:16px; background:var(--surface2); color:var(--ink); font-weight:700; text-align:left; cursor:pointer}
+.menu-item.danger{color:var(--danger)}
+.menu-item:focus-visible{outline:3px solid var(--handle); outline-offset:2px}
+.field-in{width:100%; border:0; border-radius:14px; padding:0 14px; min-height:50px; background:var(--surface2); color:var(--ink); font-size:16px}
+.field-in:focus{outline:3px solid var(--handle); outline-offset:1px}
+.opts{display:flex; flex-wrap:wrap; gap:8px}
+.opts-wrap{display:flex; flex-direction:column; gap:10px}
+.check{display:flex; align-items:center; gap:10px; font-weight:500}
+.check input{width:20px; height:20px; accent-color:var(--accent)}
+
+/* Modifier le texte */
+#txStage{display:block; overflow:auto; flex:1 1 48%}
+#txWrap{position:relative; margin:10px auto; box-shadow:var(--shadow); background:var(--surface)}
+#txWrap.adding{cursor:crosshair}
+#txImg{display:block; width:100%; height:100%; max-width:none}
+.txb{position:absolute; padding:0; border:0; border-radius:3px; background:var(--hl-fill); box-shadow:inset 0 0 0 1.5px var(--hl-line); cursor:pointer}
+.txb.edited{box-shadow:inset 0 0 0 2px var(--ed-line)}
+.txb.sel{background:var(--hl-fill); box-shadow:inset 0 0 0 3px var(--ed-line)}
+.txb:focus-visible{outline:3px solid var(--handle)}
+.tx-ctrl{display:flex; align-items:center; gap:8px; padding:10px 0 6px; flex-wrap:wrap}
+.tx-ctrl .hint{flex:1 1 160px}
+.icon.zoom{background:var(--surface); box-shadow:var(--shadow); font-size:24px; font-weight:700; line-height:1}
+#txList{flex:1 1 52%; min-height:0; overflow-y:auto; display:flex; flex-direction:column; gap:8px; padding:4px 2px calc(env(safe-area-inset-bottom, 0px) + 12px)}
+.txrow{display:flex; gap:10px; align-items:baseline; width:100%; text-align:left; border:0; background:var(--surface); color:var(--ink); border-radius:14px; padding:10px 14px; box-shadow:var(--shadow); cursor:pointer}
+.txrow.sel{box-shadow:inset 0 0 0 2px var(--ed-line)}
+.txrow .n{font-size:11px; color:var(--muted); min-width:2ch; font-variant-numeric:tabular-nums}
+.txrow .t{flex:1; min-width:0; overflow-wrap:anywhere}
+.txrow .st{font-size:11px; font-weight:700; color:var(--ed-line)}
 @media (prefers-reduced-motion: reduce){
   .scene .clouds,.scene .clouds2,.illus .plane{animation:none}
   .spin{animation-duration:2.5s}
@@ -183,6 +224,8 @@ svg.i{width:22px; height:22px; stroke:currentColor; fill:none; stroke-width:1.9;
   <symbol id="i-wand" viewBox="0 0 24 24"><path d="M5 19L15 9"/><path d="M14 4v3M12.5 5.5h3M19 10v3M17.5 11.5h3M8 4v2M7 5h2"/></symbol>
   <symbol id="i-full" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="16" rx="1"/></symbol>
   <symbol id="i-send" viewBox="0 0 24 24"><path d="M21 3L10 14"/><path d="M21 3l-7 18-4-7-7-4 18-7z"/></symbol>
+  <symbol id="i-pen" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></symbol>
+  <symbol id="i-eraser" viewBox="0 0 24 24"><path d="M9 20h11"/><path d="M4.6 14.6l8-8a2 2 0 012.8 0l2 2a2 2 0 010 2.8L11 18H8.4l-3.8-3.4a1 1 0 010-0z"/></symbol>
   <symbol id="i-text" viewBox="0 0 24 24"><path d="M4 6h16M4 11h16M4 16h10"/></symbol>
 </svg>
 
@@ -243,10 +286,13 @@ svg.i{width:22px; height:22px; stroke:currentColor; fill:none; stroke-width:1.9;
   </header>
   <div class="submeta mono" id="docMeta"></div>
   <div class="tools">
+    <select class="select" id="docType" aria-label="Type de document"></select>
     <select class="select" id="docFolder" aria-label="Dossier"></select>
     <button class="btn sm" id="docRead" hidden><svg class="i"><use href="#i-text"/></svg>Lire le texte</button>
     <button class="btn sm" id="docCopy" hidden>Copier le texte</button>
+    <span class="pill soft" id="ocrStatus" role="status" hidden></span>
   </div>
+  <dl class="facts" id="docFacts" hidden></dl>
   <div class="scroll"><div class="grid" id="pageGrid"></div></div>
   <div class="dock">
     <button class="btn ic" id="docAddCam" aria-label="Ajouter une page avec l'appareil photo"><svg class="i"><use href="#i-camera"/></svg></button>
@@ -272,6 +318,7 @@ svg.i{width:22px; height:22px; stroke:currentColor; fill:none; stroke-width:1.9;
       <button class="tab" role="tab" id="tabBtnCrop" data-tab="crop" aria-selected="true">Cadrage</button>
       <button class="tab" role="tab" id="tabBtnFilter" data-tab="filter" aria-selected="false">Filtre</button>
       <button class="tab" role="tab" id="tabBtnAdjust" data-tab="adjust" aria-selected="false">Réglages</button>
+      <button class="tab" role="tab" id="tabBtnErase" data-tab="erase" aria-selected="false">Gomme</button>
     </div>
     <div class="tabbody" id="paneCrop">
       <button class="btn sm" id="btnDetect"><svg class="i"><use href="#i-wand"/></svg>Détecter</button>
@@ -279,8 +326,9 @@ svg.i{width:22px; height:22px; stroke:currentColor; fill:none; stroke-width:1.9;
       <div class="hint">Glisse les coins dorés. Une loupe t'aide à viser juste.</div>
     </div>
     <div class="tabbody" id="paneFilter" hidden>
+      <button class="chip" data-filter="auto" aria-pressed="true">Auto</button>
+      <button class="chip" data-filter="doc" aria-pressed="false">Document</button>
       <button class="chip" data-filter="original" aria-pressed="false">Original</button>
-      <button class="chip" data-filter="doc" aria-pressed="true">Document</button>
       <button class="chip" data-filter="gray" aria-pressed="false">Gris</button>
       <button class="chip" data-filter="bw" aria-pressed="false">Noir et blanc</button>
       <button class="btn sm" id="btnRotate"><svg class="i"><use href="#i-rotate"/></svg>Pivoter</button>
@@ -290,11 +338,52 @@ svg.i{width:22px; height:22px; stroke:currentColor; fill:none; stroke-width:1.9;
       <div class="sl"><label for="slContrast">Contraste</label><input type="range" id="slContrast" min="-50" max="60" value="0"><output id="ouContrast">0</output></div>
       <button class="btn sm" id="btnResetAdj">Réinitialiser</button>
     </div>
+    <div class="tabbody" id="paneErase" hidden>
+      <div class="sl"><label for="slErase">Taille</label><input type="range" id="slErase" min="1" max="8" value="3"><output id="ouErase">3</output></div>
+      <button class="btn sm" id="btnEraseUndo"><svg class="i"><use href="#i-back"/></svg>Annuler le dernier trait</button>
+      <div class="hint">Passe le doigt sur une tache, une ombre ou un doigt pris en photo.</div>
+    </div>
   </div>
+</section>
+
+<!-- Modifier le texte -->
+<section class="view" id="vText" hidden>
+  <header class="bar">
+    <button class="icon" id="txBack" aria-label="Retour au document"><svg class="i"><use href="#i-back"/></svg></button>
+    <div class="ed-title"><div class="n">Modifier le texte</div><div class="mono" id="txInfo"></div></div>
+    <button class="btn primary sm" id="txAdd">+ Texte</button>
+  </header>
+  <div class="stage" id="txStage"><div id="txWrap"><img id="txImg" alt="Page"><div id="txBoxes"></div></div></div>
+  <div class="tx-ctrl">
+    <button class="icon zoom" id="txZoomOut" aria-label="Dézoomer">−</button>
+    <button class="icon zoom" id="txZoomIn" aria-label="Zoomer">+</button>
+    <div class="hint" id="txHint"></div>
+  </div>
+  <div id="txList"></div>
 </section>
 
 <div id="toast" hidden><div id="toastMsg"></div></div>
 <div class="overlay" id="busy" hidden role="status"><div class="spin"></div><div id="busyMsg">Un instant…</div><button class="btn sm" id="busyStop" hidden>Arrêter</button></div>
+<div class="overlay bottom" id="menu" hidden role="dialog" aria-modal="true" aria-labelledby="menuTitle">
+  <div class="sheet-box">
+    <p id="menuTitle"></p>
+    <div class="menu-list" id="menuList"></div>
+    <button class="btn" id="menuClose">Fermer</button>
+  </div>
+</div>
+<div class="overlay bottom" id="esSheet" hidden role="dialog" aria-modal="true" aria-labelledby="esTitle">
+  <div class="sheet-box">
+    <p id="esTitle"></p>
+    <input class="field-in" id="esText" type="text" maxlength="300" autocomplete="off" aria-label="Texte">
+    <div class="opts-wrap" id="esAdd" hidden>
+      <div class="opts" role="group" aria-label="Taille"><button class="chip" data-size="s">Petit</button><button class="chip" data-size="m">Moyen</button><button class="chip" data-size="l">Grand</button></div>
+      <div class="opts" role="group" aria-label="Couleur"><button class="chip" data-color="k">Noir</button><button class="chip" data-color="b">Bleu</button><button class="chip" data-color="r">Rouge</button></div>
+    </div>
+    <label class="check" id="esImgRow"><input type="checkbox" id="esImg" checked> Modifier aussi l'image</label>
+    <div class="row" id="esExtra"><button class="btn sm" id="esRestore">Rétablir l'original</button><button class="btn sm" id="esDelete">Effacer la ligne</button></div>
+    <div class="row"><button class="btn" id="esNo">Annuler</button><button class="btn primary" id="esOk">Appliquer</button></div>
+  </div>
+</div>
 <div class="overlay" id="sheet" hidden role="dialog" aria-modal="true">
   <div class="sheet-box">
     <p id="sheetMsg"></p>
@@ -393,7 +482,7 @@ function ask(msg, yes, o = {}){
     if (o.input) inp.focus(); else if (o.text) { ta.focus(); ta.select(); } else n.focus();
   });
 }
-function show(name){ for (const v of ['vLib','vDoc','vEdit']) $(v).hidden = v !== name; }
+function show(name){ for (const v of ['vLib','vDoc','vEdit','vText']) $(v).hidden = v !== name; }
 const cssv = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const slug = t => (t || 'scan').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'scan';
 
@@ -537,25 +626,70 @@ function warp(info, c, maxSide){
   }
   return {data:out, W, H, bg:null};
 }
-function bgOf(data, W, H){
-  let c = mk(W, H);
-  c.getContext('2d').putImageData(new ImageData(data, W, H), 0, 0);
-  let cw = W, ch = H;
-  for (let i = 0; i < 4 && Math.min(cw, ch) >= 4; i++) {
-    const nw = Math.ceil(cw/2), nh = Math.ceil(ch/2), n = mk(nw, nh), x = n.getContext('2d');
-    x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
-    x.drawImage(c, 0, 0, nw, nh); c = n; cw = nw; ch = nh;
+function maxFilter(a, w, h, r){
+  const t = new Float32Array(a.length), o = new Float32Array(a.length);
+  for (let y = 0; y < h; y++) {
+    const row = y*w;
+    for (let x = 0; x < w; x++) {
+      let m = 0; const x0 = x - r < 0 ? 0 : x - r, x1 = x + r >= w ? w - 1 : x + r;
+      for (let i = x0; i <= x1; i++) if (a[row+i] > m) m = a[row+i];
+      t[row+x] = m;
+    }
   }
+  for (let x = 0; x < w; x++) {
+    for (let y = 0; y < h; y++) {
+      let m = 0; const y0 = y - r < 0 ? 0 : y - r, y1 = y + r >= h ? h - 1 : y + r;
+      for (let j = y0; j <= y1; j++) if (t[j*w+x] > m) m = t[j*w+x];
+      o[y*w+x] = m;
+    }
+  }
+  return o;
+}
+// Fond du papier sans le texte : on réduit l'image, on « gonfle » les zones claires
+// pour faire disparaître l'encre, puis on lisse. Diviser par ce fond efface ombres et dégradés.
+function bgOf(data, W, H){
+  const f = 4, w = Math.max(4, Math.ceil(W/f)), h = Math.max(4, Math.ceil(H/f));
+  const full = mk(W, H); full.getContext('2d').putImageData(new ImageData(data, W, H), 0, 0);
+  const sm = mk(w, h), sx = sm.getContext('2d', {willReadFrequently:true});
+  sx.imageSmoothingEnabled = true; sx.imageSmoothingQuality = 'high'; sx.drawImage(full, 0, 0, w, h);
+  const px = sx.getImageData(0, 0, w, h), N = w*h;
+  const r = Math.max(3, Math.round(Math.min(w, h)/90));
+  for (let k = 0; k < 3; k++) {
+    let a = new Float32Array(N);
+    for (let i = 0; i < N; i++) a[i] = px.data[i*4+k];
+    a = blur(blur(maxFilter(a, w, h, r), w, h, r), w, h, r);
+    for (let i = 0; i < N; i++) px.data[i*4+k] = a[i];
+  }
+  sx.putImageData(px, 0, 0);
   const big = mk(W, H), bx = big.getContext('2d', {willReadFrequently:true});
-  bx.imageSmoothingEnabled = true; bx.imageSmoothingQuality = 'high';
-  bx.drawImage(c, 0, 0, W, H);
+  bx.imageSmoothingEnabled = true; bx.imageSmoothingQuality = 'high'; bx.drawImage(sm, 0, 0, W, H);
   return bx.getImageData(0, 0, W, H).data;
+}
+function saturate(o, k){
+  for (let i = 0; i < o.length; i += 4) {
+    const l = .299*o[i] + .587*o[i+1] + .114*o[i+2];
+    o[i] = l + (o[i]-l)*k; o[i+1] = l + (o[i+1]-l)*k; o[i+2] = l + (o[i+2]-l)*k;
+  }
+}
+function sharpen(o, W, H, amt){
+  const L = new Float32Array(W*H);
+  for (let i = 0, j = 0; j < L.length; i += 4, j++) L[j] = .299*o[i] + .587*o[i+1] + .114*o[i+2];
+  const B = blur(L, W, H, 1);
+  for (let i = 0, j = 0; j < L.length; i += 4, j++) { const d = (L[j] - B[j])*amt; o[i] += d; o[i+1] += d; o[i+2] += d; }
+}
+function cleanBorder(o, W, H){
+  const m = Math.max(2, Math.round(Math.min(W, H)*.006));
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    if (x >= m && x < W - m && y >= m && y < H - m) { x = W - m - 1; continue; }
+    const i = (y*W + x)*4; o[i] = o[i+1] = o[i+2] = 255;
+  }
 }
 function buildLut(mode, br, ct){
   const L = new Uint8ClampedArray(256), k = 1 + ct;
   for (let i = 0; i < 256; i++) {
     let t = i/255;
     if (mode === 'doc') t = clamp01((t - .38)/(.93 - .38));
+    else if (mode === 'auto') { t = clamp01((t - .34)/(.92 - .34)); t = Math.pow(t, 1.3); }
     else if (mode === 'gray') t = clamp01((t - .32)/(.95 - .32));
     else if (mode === 'bw') { t = clamp01((t - .52)/(.80 - .52)); t = t*t*(3 - 2*t); }
     t = (t - .5)*k + .5 + br;
@@ -570,7 +704,7 @@ function applyFilter(wp, o){
     for (let i = 0; i < data.length; i += 4) { out[i] = lut[data[i]]; out[i+1] = lut[data[i+1]]; out[i+2] = lut[data[i+2]]; out[i+3] = 255; }
   } else {
     const bg = wp.bg || (wp.bg = bgOf(data, W, H));
-    if (mode === 'doc') {
+    if (mode === 'doc' || mode === 'auto') {
       for (let i = 0; i < data.length; i += 4) {
         for (let k = 0; k < 3; k++) {
           const b = bg[i+k] || 1; let c = data[i+k]*255/b; if (c > 255) c = 255;
@@ -578,6 +712,7 @@ function applyFilter(wp, o){
         }
         out[i+3] = 255;
       }
+      if (mode === 'auto') { saturate(out, 1.25); sharpen(out, W, H, .8); }
     } else {
       for (let i = 0; i < data.length; i += 4) {
         const l = .299*data[i] + .587*data[i+1] + .114*data[i+2];
@@ -586,6 +721,7 @@ function applyFilter(wp, o){
         const v = lut[c|0]; out[i] = v; out[i+1] = v; out[i+2] = v; out[i+3] = 255;
       }
     }
+    cleanBorder(out, W, H);
   }
   return new ImageData(out, W, H);
 }
@@ -601,7 +737,51 @@ async function renderPageCanvas(page, maxSide){
   const wp = warp(info, page.corners, maxSide);
   const img = applyFilter(wp, page);
   const cv = mk(1, 1); drawResult(cv, img, wp.W, wp.H, page.rot);
+  applyErase(cv, page.erase);
+  applyEdits(cv, page.edits);
   return cv;
+}
+// Couleur du papier : une teinte claire mais pas les reflets
+function paperColor(cv){
+  const w = 96, h = Math.max(1, Math.round(96*cv.height/cv.width)), s = mk(w, h), x = s.getContext('2d', {willReadFrequently:true});
+  x.drawImage(cv, 0, 0, w, h);
+  const d = x.getImageData(0, 0, w, h).data, px = [];
+  for (let i = 0; i < d.length; i += 4) px.push([.299*d[i] + .587*d[i+1] + .114*d[i+2], d[i], d[i+1], d[i+2]]);
+  px.sort((a, b) => a[0] - b[0]);
+  const c = px[Math.floor(px.length*.85)];
+  return `rgb(${c[1]},${c[2]},${c[3]})`;
+}
+function applyErase(cv, strokes){
+  if (!strokes || !strokes.length) return;
+  const x = cv.getContext('2d'), W = cv.width, H = cv.height, M = Math.max(W, H);
+  x.save(); x.strokeStyle = x.fillStyle = paperColor(cv); x.lineCap = x.lineJoin = 'round';
+  for (const s of strokes) {
+    x.lineWidth = s.r*2*M; x.beginPath();
+    if (s.pts.length === 1) { x.arc(s.pts[0][0]*W, s.pts[0][1]*H, s.r*M, 0, Math.PI*2); x.fill(); continue; }
+    s.pts.forEach(([u, v], i) => i ? x.lineTo(u*W, v*H) : x.moveTo(u*W, v*H));
+    x.stroke();
+  }
+  x.restore();
+}
+const EDIT_FONT = 'Arial, "Helvetica Neue", Helvetica, sans-serif';
+function applyEdits(cv, edits){
+  if (!edits || !edits.length) return;
+  const x = cv.getContext('2d'), W = cv.width, H = cv.height;
+  for (const e of edits) {
+    const x0 = e.b[0]/1000*W, y0 = e.b[1]/1000*H, x1 = e.b[2]/1000*W, y1 = e.b[3]/1000*H, bw = x1 - x0, bh = y1 - y0;
+    if (e.bg) { const p = Math.max(2, bh*.16); x.fillStyle = e.bg; x.fillRect(x0 - p, y0 - p, bw + 2*p, bh + 2*p); }
+    if (!e.t) continue;
+    const fs = e.fs*H;
+    x.save();
+    x.font = `${e.bold ? 700 : 400} ${fs}px ${EDIT_FONT}`; x.fillStyle = e.fg; x.textBaseline = 'alphabetic';
+    const tw = x.measureText(e.t).width, maxW = W*.98 - x0;
+    let k = 1;
+    if (!e.add && tw > bw) k = Math.max(.74, bw/tw);
+    if (tw*k > maxW) k = maxW/tw;
+    const by = e.by != null ? e.by/1000*H : y1 - bh*.2;
+    x.translate(x0, by); x.scale(k, 1); x.fillText(e.t, 0, 0);
+    x.restore();
+  }
 }
 async function thumbBlob(cv){
   const s = Math.min(1, 420/Math.max(cv.width, cv.height));
@@ -633,7 +813,7 @@ async function ingest(file){
   const w = Math.max(1, Math.round(bw*s)), hh = Math.max(1, Math.round(bh*s));
   const c = mk(w, hh); c.getContext('2d', {willReadFrequently:true}).drawImage(bmp, 0, 0, w, hh);
   const orig = await toBlob(c, 'image/jpeg', .92);
-  const page = {id:uid(), orig, ow:w, oh:hh, corners:detect(c) || defaultCorners(w, hh), filter:'doc', rot:0, bright:0, contrast:0, out:null, thumb:null, w:0, h:0};
+  const page = {id:uid(), orig, ow:w, oh:hh, corners:detect(c) || defaultCorners(w, hh), filter:'auto', rot:0, bright:0, contrast:0, out:null, thumb:null, w:0, h:0};
   setSrc(page.id, {canvas:c, w, h:hh, data:null});
   return page;
 }
@@ -657,6 +837,7 @@ async function onFiles(files){
   if (!docs.includes(doc)) docs.unshift(doc);
   await persist(doc);
   openDoc(doc.id);
+  autoRead(doc);
 }
 
 /* ---------- Bibliothèque ---------- */
@@ -675,7 +856,8 @@ function illus(){
 }
 function docMatch(d, q){
   if (!q) return {ok:true};
-  if (norm(d.title + ' ' + (d.folder || '')).includes(q)) return {ok:true};
+  const inf = d.info || {};
+  if (norm([d.title, d.folder, inf.type, inf.from].filter(Boolean).join(' ')).includes(q)) return {ok:true};
   const t = d.pages.some(p => norm(p.text).includes(q));
   return {ok:t, text:t};
 }
@@ -705,7 +887,8 @@ function renderLib(){
   if (!rows.length) { list.append(h('p', {class:'muted'}, 'Aucun résultat.')); return; }
   for (const {d, m} of rows) {
     const first = d.pages[0];
-    const meta = `${d.pages.length} p. · ${fmtDate(d.updated)}` + (d.folder ? ` · ${d.folder}` : '') + (m.text ? ' · trouvé dans le texte' : '');
+    const inf = d.info || {};
+    const meta = [`${d.pages.length} p.`, inf.type && inf.type !== 'Autre' ? inf.type : d.folder, inf.amount != null ? money(inf.amount) : null, fmtDate(d.updated), m.text ? 'trouvé dans le texte' : null].filter(Boolean).join(' · ');
     list.append(h('button', {class:'card', onclick:() => openDoc(d.id)},
       first ? h('img', {class:'th', src:urlOf(first.thumb), alt:''}) : h('div', {class:'th'}),
       h('div', {style:'min-width:0'}, h('div', {class:'t'}, d.title), h('div', {class:'m mono'}, meta)),
@@ -732,22 +915,63 @@ function renderDoc(){
   const g = $('pageGrid'); g.textContent = '';
   const nTxt = cur.pages.filter(p => p.lines && p.lines.length).length;
   $('docMeta').textContent = `${cur.pages.length} page${cur.pages.length > 1 ? 's' : ''} · ${fmtDate(cur.updated)}` + (nTxt ? ' · texte lu' : '');
-  syncFolderSelect();
-  $('docRead').hidden = !cur.pages.some(p => !p.lines);
+  syncFolderSelect(); renderInfo();
+  const reading = !!ocrRun && ocrDoc === cur;
+  $('docRead').hidden = reading || !cur.pages.some(p => !p.lines);
   $('docCopy').hidden = !cur.pages.some(p => p.text);
+  if (!reading) setOcrPill('');
   cur.pages.forEach((p, i) => {
     g.append(h('div', {class:'tile'},
-      h('button', {class:'tile-open', 'aria-label':`Modifier la page ${i+1}`, onclick:() => startEditorEdit(i)},
+      h('button', {class:'tile-open', 'aria-label':`Page ${i+1} : options`, onclick:() => pageMenu(i)},
         h('img', {src:urlOf(p.thumb), alt:`Page ${i+1}`}),
         h('span', {class:'badge'}, 'P.' + String(i+1).padStart(2, '0')),
         (p.lines && p.lines.length) ? h('span', {class:'tag'}, 'TXT') : null),
       h('div', {class:'tile-actions'},
         h('button', {class:'icon mini', 'aria-label':'Déplacer avant', onclick:() => movePage(i, -1), ...(i === 0 ? {disabled:''} : {})}, icon('left')),
-        h('button', {class:'icon mini', 'aria-label':'Enregistrer en JPEG', onclick:() => exportJpeg(i)}, icon('down')),
-        h('button', {class:'icon mini danger', 'aria-label':'Supprimer la page', onclick:() => deletePage(i)}, icon('trash')),
+        h('button', {class:'icon mini', 'aria-label':`Modifier le texte de la page ${i+1}`, onclick:() => openText(i)}, icon('pen')),
         h('button', {class:'icon mini', 'aria-label':'Déplacer après', onclick:() => movePage(i, 1), ...(i === cur.pages.length-1 ? {disabled:''} : {})}, icon('right'))
       )));
   });
+}
+function renderInfo(){
+  const inf = cur.info || {}, sel = $('docType'); sel.textContent = '';
+  sel.append(h('option', {value:''}, 'Type à détecter'));
+  for (const [t] of TYPES) sel.append(h('option', {value:t}, t));
+  sel.append(h('option', {value:'Autre'}, 'Autre'));
+  sel.value = inf.type || '';
+  const f = $('docFacts'); f.textContent = '';
+  const add = (k, v) => f.append(h('div', {}, h('dt', {}, k), h('dd', {}, v)));
+  if (inf.date) add('Date', fmtDate(Date.parse(inf.date)));
+  if (inf.amount != null) add('Montant', money(inf.amount));
+  if (inf.from) add('Émetteur', inf.from);
+  f.hidden = !f.children.length;
+}
+async function changeType(v){
+  cur.info = Object.assign({}, cur.info, {type:v, manual:!!v});
+  if (v && v !== 'Autre' && cur.autoFolder !== false) { cur.folder = folderFor(v); cur.autoFolder = true; }
+  if (cur.autoTitle) { const t = autoTitle(cur.info); if (t) { cur.title = t; $('docTitle').value = t; } }
+  cur.updated = Date.now(); await persist(cur); renderDoc();
+}
+function menu(title, items){
+  return new Promise(res => {
+    $('menuTitle').textContent = title; const list = $('menuList'); list.textContent = '';
+    const done = v => { $('menu').hidden = true; res(v); };
+    for (const it of items) list.append(h('button', {class:'menu-item' + (it.danger ? ' danger' : ''), onclick:() => done(it.key)}, icon(it.icon), it.label));
+    $('menuClose').onclick = () => done(null);
+    $('menu').hidden = false; list.firstChild && list.firstChild.focus();
+  });
+}
+async function pageMenu(i){
+  const k = await menu(`Page ${i+1}`, [
+    {key:'edit', icon:'wand', label:'Recadrer, filtre et gomme'},
+    {key:'text', icon:'pen', label:'Modifier le texte'},
+    {key:'jpg', icon:'image', label:'Enregistrer en image'},
+    {key:'del', icon:'trash', label:'Supprimer la page', danger:true}
+  ]);
+  if (k === 'edit') startEditorEdit(i);
+  else if (k === 'text') openText(i);
+  else if (k === 'jpg') exportJpeg(i);
+  else if (k === 'del') deletePage(i);
 }
 async function movePage(i, d){
   const j = i + d; if (j < 0 || j >= cur.pages.length) return;
@@ -770,7 +994,7 @@ async function changeFolder(v){
     if (!name) { syncFolderSelect(); return; }
     v = name.slice(0, 30);
   }
-  cur.folder = v; cur.updated = Date.now(); await persist(cur); renderDoc();
+  cur.folder = v; cur.autoFolder = false; cur.updated = Date.now(); await persist(cur); renderDoc();
 }
 
 /* ---------- PDF (écrit à la main, JPEG intégrés tels quels) ---------- */
@@ -789,7 +1013,7 @@ const lat1 = str => Uint8Array.from(str, ch => ch.charCodeAt(0) & 255);
 function textLayer(p, pw, ph){
   let s = 'BT\n3 Tr\n';
   for (const l of p.lines || []) {
-    if (!l.b) continue;
+    if (!l.b || !l.t) continue;
     const [x0, y0, x1, y1] = l.b;
     const bw = (x1 - x0)/1000*pw, bh = (y1 - y0)/1000*ph;
     const fs = Math.max(3, bh*.82), est = Math.max(1, l.t.length*fs*.5);
@@ -863,68 +1087,150 @@ async function getOcr(){
   return ocrWorker;
 }
 function stopOcr(){ const w = ocrWorker; ocrWorker = null; ocrLoading = null; if (w) w.terminate().catch(() => {}); }
-const RULES = [
-  ['Factures', /\bfactur|total ttc|montant ttc|net a payer|\btva\b/],
-  ['Banque', /releve de compte|\biban\b|\bbic\b|virement|credit agricole|caisse d.epargne|banque/],
-  ['Santé', /ordonnance|mutuelle|\bcpam\b|assurance maladie|pharmacie|hopital|docteur/],
-  ['Identité', /carte nationale|passeport|permis de conduire/],
-  ['Administratif', /impots|\burssaf\b|\bcaf\b|prefecture|mairie|attestation|avis d.imposition|contrat/],
-  ['Courrier', /madame, monsieur|cordialement|salutations/]
-];
-function classify(text){
-  const t = norm(text);
-  for (const [folder, re] of RULES) if (re.test(t)) {
-    const line = text.split('\n').find(l => re.test(norm(l)) && l.length <= 60);
-    return {folder, line};
+function parseLines(r, p){
+  const lines = []; let n = 0;
+  for (const b of r.data.blocks || []) for (const para of b.paragraphs || []) for (const l of para.lines || []) {
+    const t = (l.text || '').replace(/\s+/g, ' ').trim();
+    if (!t || l.confidence < 35) continue;
+    const bb = l.bbox, bl = l.baseline;
+    lines.push({id:'l' + (n++), t:t.slice(0, 300), b:[bb.x0/p.w*1000, bb.y0/p.h*1000, bb.x1/p.w*1000, bb.y1/p.h*1000],
+      bl:bl && bl.has_baseline !== false && isFinite(bl.y0) ? (bl.y0 + bl.y1)/2/p.h*1000 : null});
   }
-  return {folder:'', line:null};
+  return lines;
 }
-async function readText(){
-  if (!cur) return;
-  const todo = cur.pages.filter(p => !p.lines);
-  if (!todo.length) { toast('Le texte de toutes les pages est déjà lu.'); return; }
-  let i = 0, stopped = false;
-  const stop = () => { stopped = true; stopOcr(); busy(null); toast('Lecture arrêtée.'); };
-  ocrProgress = m => {
-    if (stopped) return;
-    if (m.status === 'recognizing text') busy(`Lecture du texte · page ${i + 1} sur ${todo.length} · ${Math.round((m.progress || 0)*100)} %`, stop);
-    else if (/load|initiali/.test(m.status || '')) busy('Préparation de la lecture… (plus long la première fois)', stop);
-  };
-  busy('Préparation de la lecture…', stop);
-  let done = 0;
-  try {
-    const w = await getOcr();
-    for (; i < todo.length; i++) {
-      if (stopped) break;
-      const p = todo[i];
-      const r = await w.recognize(p.out, {}, {blocks:true, text:true});
-      const lines = [];
-      for (const b of r.data.blocks || []) for (const para of b.paragraphs || []) for (const l of para.lines || []) {
-        const t = (l.text || '').replace(/\s+/g, ' ').trim();
-        if (!t || l.confidence < 35) continue;
-        const bb = l.bbox;
-        lines.push({t:t.slice(0, 300), b:[bb.x0/p.w*1000, bb.y0/p.h*1000, bb.x1/p.w*1000, bb.y1/p.h*1000]});
+const linesText = p => (p.lines || []).filter(l => l.t).map(l => l.t).join('\n');
+function ensureIds(p){ (p.lines || []).forEach((l, i) => { if (!l.id) l.id = 'l' + i; }); }
+
+let ocrRun = null, ocrDoc = null;
+const ocrPending = new Set();
+function setOcrPill(msg){ const el = $('ocrStatus'); el.hidden = !msg; if (msg) el.textContent = msg; }
+// Lit le texte des pages pas encore lues, en arrière-plan.
+function autoRead(doc){
+  if (!doc || !doc.pages.some(p => !p.lines)) return ocrRun || Promise.resolve();
+  if (ocrRun) { if (ocrDoc !== doc) ocrPending.add(doc); return ocrRun; }
+  ocrDoc = doc;
+  ocrRun = (async () => {
+    let ok = true;
+    try {
+      const w = await getOcr();
+      for (const p of doc.pages.filter(q => !q.lines)) {
+        const ref = p.out, num = () => doc.pages.indexOf(p) + 1;
+        ocrProgress = m => {
+          if (cur !== doc || $('vDoc').hidden) return;
+          if (m.status === 'recognizing text') setOcrPill(`Lecture p. ${num()} · ${Math.round((m.progress || 0)*100)} %`);
+          else if (/load|initiali/.test(m.status || '')) setOcrPill('Préparation de la lecture…');
+        };
+        if (cur === doc) setOcrPill(`Lecture p. ${num()}…`);
+        const r = await w.recognize(p.out, {}, {blocks:true, text:true});
+        if (p.out !== ref || !doc.pages.includes(p)) continue;
+        p.lines = parseLines(r, p); p.text = linesText(p);
       }
-      p.lines = lines; p.text = lines.map(l => l.t).join('\n');
-      done++;
+      analyze(doc);
+      doc.updated = Date.now();
+      if (docs.includes(doc)) await persist(doc);
+    } catch (e) {
+      ok = false;
+      if (cur === doc) toast('La lecture du texte a échoué. Vérifie ta connexion pour le premier usage.');
+    } finally {
+      ocrProgress = null;
+      ocrRun = null; ocrDoc = null;
+      if (cur === doc && !$('vDoc').hidden) { $('docTitle').value = doc.title; renderDoc(); }
+      else if (!$('vLib').hidden) renderLib();
+      if (ok && docs.includes(doc) && doc.pages.some(p => !p.lines)) autoRead(doc);
+      else if (ocrPending.size) { const next = ocrPending.values().next().value; ocrPending.delete(next); autoRead(next); }
     }
-  } catch (e) {
-    if (!stopped) toast('La lecture du texte a échoué. Vérifie ta connexion pour le premier usage.');
-  }
-  ocrProgress = null;
-  if (!stopped) busy(null);
-  if (!done) { renderDoc(); return; }
-  const all = cur.pages.map(p => p.text || '').join('\n');
-  const c = classify(all);
-  if (!cur.folder && c.folder) cur.folder = c.folder;
-  if (/^Scan \d/.test(cur.title)) {
-    const first = c.line || all.split('\n').find(l => /[A-Za-zÀ-ÿ]{3}/.test(l) && l.length <= 60);
-    if (first) { cur.title = first.trim().slice(0, 60); $('docTitle').value = cur.title; }
-  }
-  cur.updated = Date.now(); await persist(cur); renderDoc();
-  const empty = todo.slice(0, done).every(p => !p.lines.length);
-  toast(empty ? 'Aucun texte trouvé sur ces pages.' : done === todo.length ? 'Texte lu. Le PDF sera recherchable.' : `Texte lu pour ${done} page${done > 1 ? 's' : ''}.`);
+  })();
+  return ocrRun;
 }
+
+/* ---------- Type de document et infos clés ---------- */
+const TYPES = [
+  ['Facture', 'Factures', [[/\bfacture\b/, 5], [/total ttc|montant ttc/, 3], [/net a payer/, 2], [/\btva\b/, 1], [/siret|siren/, 1], [/echeance|reglement/, 1]]],
+  ['Devis', 'Factures', [[/\bdevis\b/, 6], [/bon pour accord|validite de l.offre/, 3], [/total ttc/, 1]]],
+  ['Ticket de caisse', 'Factures', [[/ticket|\bcaisse\b/, 2], [/\bcb\b|carte bancaire|sans contact/, 2], [/merci de votre visite|a bientot|merci et a bientot/, 3], [/rendu|especes/, 1], [/\btotal\b/, 1]]],
+  ['Relevé bancaire', 'Banque', [[/releve de compte|extrait de compte|releve d.identite bancaire/, 6], [/solde (crediteur|debiteur|au|precedent)/, 3], [/\biban\b|\bbic\b/, 2], [/\bdebit\b|\bcredit\b/, 1]]],
+  ['Fiche de paie', 'Administratif', [[/bulletin de (paie|salaire)/, 7], [/salaire (de )?base|salaire brut/, 3], [/net a payer avant impot|net imposable|net social/, 3], [/cotisations?/, 1]]],
+  ["Avis d'impôt", 'Administratif', [[/avis d.(impot|imposition)/, 7], [/revenu fiscal de reference/, 4], [/impots\.gouv|finances publiques/, 3]]],
+  ['Ordonnance', 'Santé', [[/ordonnance/, 6], [/posologie|comprime|gelule|\bmg\b|matin.{0,20}soir/, 2], [/\bdr\.? |docteur|medecin/, 2], [/renouvel/, 1]]],
+  ['Santé', 'Santé', [[/mutuelle|assurance maladie|\bcpam\b|ameli/, 4], [/feuille de soins|remboursement|tiers payant/, 2], [/pharmacie|hopital|clinique/, 2]]],
+  ['Contrat', 'Administratif', [[/\bcontrat\b/, 5], [/entre les soussignes|ci-apres denomme/, 4], [/article \d/, 2], [/fait a .{1,40} le/, 1]]],
+  ['Attestation', 'Administratif', [[/attestation|certificat\b/, 5], [/certifie|atteste/, 3], [/pour servir et valoir/, 3]]],
+  ['Quittance de loyer', 'Administratif', [[/quittance/, 6], [/\bloyer\b/, 3], [/bailleur|locataire/, 2]]],
+  ["Pièce d'identité", 'Identité', [[/carte nationale d.identite|passeport|permis de conduire|titre de sejour/, 7], [/republique francaise/, 2], [/date de naiss|nationalite/, 2]]],
+  ['Courrier', 'Courrier', [[/madame,? monsieur|cher monsieur|chere madame/, 4], [/cordialement|salutations|sentiments/, 3], [/\bobjet ?:/, 2]]],
+  ['Carte de visite', 'Divers', []]
+];
+const folderFor = t => (TYPES.find(x => x[0] === t) || [0, 'Divers'])[1];
+const money = v => new Intl.NumberFormat('fr-FR', {style:'currency', currency:'EUR'}).format(v);
+function detectType(text, ratio){
+  const t = norm(text); let best = ['Autre', 0];
+  for (const [type, , rules] of TYPES) {
+    let sc = 0; for (const [re, w] of rules) if (re.test(t)) sc += w;
+    if (type === 'Ticket de caisse' && ratio > 1.9) sc += 4;
+    if (sc > best[1]) best = [type, sc];
+  }
+  if (ratio < .75 && t.length < 400 && best[1] < 5 && /@|\btel\b|\+33|\b0[1-9](?:[ .]?\d{2}){4}\b|www\./.test(t)) best = ['Carte de visite', 6];
+  return best[1] >= 3 ? best[0] : 'Autre';
+}
+const MONTHS = ['janvier','fevrier','mars','avril','mai','juin','juillet','aout','septembre','octobre','novembre','decembre'];
+function findDate(text){
+  const t = norm(text);
+  const ok = (d, m, y) => { if (y < 100) y += 2000; if (d < 1 || d > 31 || m < 1 || m > 12 || y < 1990 || y > 2100) return null; return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`; };
+  let m; const re1 = /\b(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4}|\d{2})\b/g;
+  const all = [];
+  while ((m = re1.exec(t))) all.push([m.index, +m[1], +m[2], +m[3]]);
+  const re2 = new RegExp('\\b(\\d{1,2})(?:er)? (' + MONTHS.join('|') + ') (\\d{4})\\b', 'g');
+  while ((m = re2.exec(t))) all.push([m.index, +m[1], MONTHS.indexOf(m[2]) + 1, +m[3]]);
+  all.sort((a, b) => a[0] - b[0]);
+  for (const [, d, mo, y] of all) { const iso = ok(d, mo, y); if (iso) return iso; }
+  return null;
+}
+const AMOUNT = /(?<![\d,.])(\d{1,3}(?:[   .]\d{3})+|\d+)[,.](\d{2})(?![.,]?\d)/g;
+const parseAmount = (a, b) => parseFloat(a.replace(/[   .]/g, '') + '.' + b);
+function findAmount(text){
+  const lines = text.split('\n');
+  const pick = re => { let best = null; for (const l of lines) if (re.test(norm(l))) { let m; AMOUNT.lastIndex = 0; while ((m = AMOUNT.exec(l))) best = parseAmount(m[1], m[2]); } return best; };
+  let v = pick(/total ttc|net a payer|montant ttc|a payer|total a regler/);
+  if (v == null) v = pick(/\btotal\b|montant|solde/);
+  if (v == null) {
+    for (const l of lines) if (/€|\beur\b/i.test(l)) { let m; AMOUNT.lastIndex = 0; while ((m = AMOUNT.exec(l))) { const x = parseAmount(m[1], m[2]); if (v == null || x > v) v = x; } }
+  }
+  return v != null && isFinite(v) && v < 1e8 ? v : null;
+}
+const SMALL = new Set(['de','du','des','la','le','les','et','en','a','au','aux','d','l','sur','pour']);
+function nice(s){
+  if (s !== s.toUpperCase()) return s;
+  return s.toLowerCase().split(/(\s+|'|’|-)/).map((w, i) => (i && SMALL.has(w)) ? w : w.charAt(0).toUpperCase() + w.slice(1)).join('');
+}
+function findFrom(text){
+  const skip = /facture|devis|ticket|releve|bulletin|avis|ordonnance|attestation|contrat|quittance|page|date|madame|monsieur|objet|total|n°|\bno\b/;
+  for (const l of text.split('\n').slice(0, 8)) {
+    const s = l.trim(), n = norm(s);
+    if (s.length < 4 || s.length > 40 || skip.test(n)) continue;
+    if (/[.:;!?,]$/.test(s) || s.split(/\s+/).length > 6) continue;
+    if ((s.match(/[A-Za-zÀ-ÿ]/g) || []).length < s.length*.6) continue;
+    return nice(s);
+  }
+  return null;
+}
+function autoTitle(inf){
+  const head = [inf.type && inf.type !== 'Autre' ? inf.type : '', inf.from || ''].filter(Boolean).join(' ');
+  if (!head) return null;
+  return inf.date ? `${head} – ${fmtDate(Date.parse(inf.date))}` : head;
+}
+function analyze(doc){
+  const text = doc.pages.map(p => p.text || '').join('\n');
+  const p0 = doc.pages[0], ratio = p0 && p0.w ? p0.h/p0.w : 1.4;
+  const inf = Object.assign({}, doc.info);
+  inf.date = findDate(text); inf.amount = findAmount(text); inf.from = findFrom(text);
+  if (!inf.manual) inf.type = detectType(text, ratio);
+  doc.info = inf;
+  if (inf.type && inf.type !== 'Autre' && (!doc.folder || doc.autoFolder)) { doc.folder = folderFor(inf.type); doc.autoFolder = true; }
+  if (doc.autoTitle !== false && (/^Scan \d/.test(doc.title) || doc.autoTitle)) {
+    const t = autoTitle(inf); if (t) { doc.title = t; doc.autoTitle = true; }
+  }
+}
+
 async function copyText(){
   const t = cur.pages.map((p, i) => cur.pages.length > 1 ? `— Page ${i+1} —\n${p.text || ''}` : (p.text || '')).join('\n\n').trim();
   if (!t) { toast('Aucun texte à copier.'); return; }
@@ -961,7 +1267,8 @@ async function shareDoc(){
 /* ---------- Éditeur ---------- */
 function newEditor(o){
   return Object.assign({tab:'crop', drag:null, warp:null, warpKey:'', view:null, raf:0}, o, {
-    corners:o.page.corners.map(p => ({x:p.x, y:p.y})), filter:o.page.filter, rot:o.page.rot, bright:o.page.bright, contrast:o.page.contrast
+    corners:o.page.corners.map(p => ({x:p.x, y:p.y})), filter:o.page.filter, rot:o.page.rot, bright:o.page.bright, contrast:o.page.contrast,
+    erase:(o.page.erase || []).map(s => ({r:s.r, pts:s.pts.map(q => [q[0], q[1]])})), eraseSize:3
   });
 }
 async function startEditorNew(file, tgt){
@@ -991,7 +1298,8 @@ function openEditor(tab){
 function setTab(t){
   E.tab = t;
   for (const b of document.querySelectorAll('.tab')) b.setAttribute('aria-selected', String(b.dataset.tab === t));
-  $('paneCrop').hidden = t !== 'crop'; $('paneFilter').hidden = t !== 'filter'; $('paneAdjust').hidden = t !== 'adjust';
+  $('paneCrop').hidden = t !== 'crop'; $('paneFilter').hidden = t !== 'filter'; $('paneAdjust').hidden = t !== 'adjust'; $('paneErase').hidden = t !== 'erase';
+  $('cvOut').classList.toggle('erasing', t === 'erase');
   $('cvCrop').hidden = t !== 'crop'; $('cvOut').hidden = t === 'crop';
   if (t === 'crop') { layoutCrop(); drawCrop(); }
   else refreshPreview();
@@ -1011,8 +1319,46 @@ function refreshPreview(){
   if (!E || E.tab === 'crop') return;
   const key = cornerKey();
   if (E.warpKey !== key) { E.warp = warp(E.srcInfo, E.corners, 1100); E.warpKey = key; }
-  const img = applyFilter(E.warp, E);
-  drawResult($('cvOut'), img, E.warp.W, E.warp.H, E.rot);
+  const img = applyFilter(E.warp, E), cv = $('cvOut');
+  drawResult(cv, img, E.warp.W, E.warp.H, E.rot);
+  E.paperCss = paperColor(cv);
+  applyErase(cv, E.erase);
+  if (!E.isNew && !geoChanged()) applyEdits(cv, E.page.edits);
+}
+const geoKey = o => JSON.stringify([o.corners.map(c => [Math.round(c.x*10), Math.round(c.y*10)]), o.rot]);
+const geoChanged = () => geoKey(E) !== geoKey(E.page);
+/* gomme */
+function outPoint(e){
+  const cv = $('cvOut'), r = cv.getBoundingClientRect(), pad = 10;
+  const cw = r.width - 2*pad, ch = r.height - 2*pad, s = Math.min(cw/cv.width, ch/cv.height);
+  const ox = r.left + pad + (cw - cv.width*s)/2, oy = r.top + pad + (ch - cv.height*s)/2;
+  return [(e.clientX - ox)/(cv.width*s), (e.clientY - oy)/(cv.height*s)];
+}
+function drawEraseSeg(s, a, b){
+  const cv = $('cvOut'), x = cv.getContext('2d'), M = Math.max(cv.width, cv.height);
+  x.save(); x.strokeStyle = x.fillStyle = E.paperCss || '#fff'; x.lineCap = 'round'; x.lineWidth = s.r*2*M; x.beginPath();
+  if (a) { x.moveTo(a[0]*cv.width, a[1]*cv.height); x.lineTo(b[0]*cv.width, b[1]*cv.height); x.stroke(); }
+  else { x.arc(b[0]*cv.width, b[1]*cv.height, s.r*M, 0, Math.PI*2); x.fill(); }
+  x.restore();
+}
+function wireErase(){
+  const cv = $('cvOut'); let st = null;
+  const clamp = v => Math.min(1, Math.max(0, v));
+  cv.addEventListener('pointerdown', e => {
+    if (!E || E.tab !== 'erase') return;
+    const [u, v] = outPoint(e); if (u < 0 || u > 1 || v < 0 || v > 1) return;
+    st = {r:E.eraseSize/200, pts:[[u, v]]}; E.erase.push(st);
+    cv.setPointerCapture(e.pointerId); drawEraseSeg(st, null, [u, v]); e.preventDefault();
+  });
+  cv.addEventListener('pointermove', e => {
+    if (!st) return;
+    let [u, v] = outPoint(e); u = clamp(u); v = clamp(v);
+    const prev = st.pts[st.pts.length - 1];
+    if (Math.hypot(u - prev[0], v - prev[1]) < .002) return;
+    st.pts.push([u, v]); drawEraseSeg(st, prev, [u, v]);
+  });
+  const end = () => { st = null; };
+  cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
 }
 function schedulePreview(){ if (E.raf) return; E.raf = requestAnimationFrame(() => { E.raf = 0; refreshPreview(); }); }
 
@@ -1089,12 +1435,14 @@ function wireCrop(){
 /* terminer / annuler */
 async function editorDone(){
   const p = E.page;
-  const sig = o => JSON.stringify([o.corners, o.filter, o.rot, o.bright, o.contrast]);
+  const sig = o => JSON.stringify([o.corners, o.filter, o.rot, o.bright, o.contrast, o.erase || []]);
   if (!E.isNew && sig(E) === sig(p)) { const d = E.doc; E = null; openDoc(d.id); return; }
+  const geo = E.isNew || geoChanged();
   busy('Enregistrement…'); await tick();
   try {
     p.corners = E.corners.map(c => ({x:c.x, y:c.y})); p.filter = E.filter; p.rot = E.rot; p.bright = E.bright; p.contrast = E.contrast;
-    p.lines = undefined; p.text = '';
+    p.erase = E.erase;
+    if (geo) { p.lines = undefined; p.text = ''; p.edits = []; }
     await finalize(p);
     const doc = E.doc;
     if (E.isNew) doc.pages.push(p);
@@ -1103,6 +1451,7 @@ async function editorDone(){
     await persist(doc);
     busy(null); E = null;
     openDoc(doc.id);
+    autoRead(doc);
   } catch (e) { busy(null); toast('L\'enregistrement a échoué. Réessaie.'); }
 }
 function editorCancel(){
@@ -1111,6 +1460,178 @@ function editorCancel(){
   if (cur && docs.includes(cur)) openDoc(cur.id); else goLib();
   void back;
 }
+
+/* ---------- Modifier le texte ---------- */
+let TX = null;
+async function openText(i){
+  const doc = cur, p = doc.pages[i];
+  if (!p.lines) {
+    busy('Lecture du texte de la page…');
+    for (let k = 0; k < 4 && !p.lines; k++) { try { await autoRead(doc); } catch (e) {} }
+    busy(null);
+    if (!p.lines) { toast('Le texte de cette page n\'a pas pu être lu.'); return; }
+  }
+  ensureIds(p);
+  TX = {p, i, canvas:null, adding:false, zoom:1, sel:null};
+  busy('Ouverture…');
+  try { await loadTxCanvas(); } catch (e) { busy(null); TX = null; toast('Page illisible.'); return; }
+  busy(null);
+  $('txInfo').textContent = `Page ${i+1} sur ${doc.pages.length}`;
+  show('vText'); setAdding(false);
+  requestAnimationFrame(() => { layoutText(); renderBoxes(); });
+}
+async function loadTxCanvas(){
+  const bmp = await loadBitmap(TX.p.out), c = mk(TX.p.w, TX.p.h);
+  c.getContext('2d', {willReadFrequently:true}).drawImage(bmp, 0, 0);
+  TX.canvas = c; $('txImg').src = urlOf(TX.p.out);
+}
+function layoutText(){
+  if (!TX) return;
+  const st = $('txStage'), aw = st.clientWidth - 20, ah = st.clientHeight - 20;
+  const s = Math.min(aw/TX.p.w, ah/TX.p.h)*TX.zoom;
+  $('txWrap').style.width = Math.floor(TX.p.w*s) + 'px'; $('txWrap').style.height = Math.floor(TX.p.h*s) + 'px';
+}
+function setAdding(on){
+  TX.adding = on;
+  $('txAdd').textContent = on ? 'Annuler' : '+ Texte';
+  $('txHint').textContent = on ? 'Touche l\'endroit où placer le texte.' : 'Touche une ligne pour la corriger, la remplacer ou l\'effacer.';
+  $('txWrap').classList.toggle('adding', on);
+}
+function renderBoxes(){
+  const p = TX.p, boxes = $('txBoxes'), list = $('txList'); boxes.textContent = ''; list.textContent = '';
+  const eds = new Map((p.edits || []).map(e => [e.lid, e]));
+  const lines = (p.lines || []).filter(l => l.b);
+  if (!lines.length) list.append(h('p', {class:'muted', style:'padding:8px 4px;margin:0'}, 'Aucun texte reconnu sur cette page. Tu peux en ajouter avec « + Texte ».'));
+  lines.forEach((l, n) => {
+    const ed = eds.get(l.id), b = l.b;
+    const bx = h('button', {class:'txb' + (ed ? ' edited' : '') + (TX.sel === l.id ? ' sel' : ''), 'aria-label':'Modifier : ' + (l.t || 'ligne effacée'),
+      style:`left:${b[0]/10}%;top:${b[1]/10}%;width:${(b[2]-b[0])/10}%;height:${(b[3]-b[1])/10}%`,
+      onclick:e => { if (TX.adding) return; e.stopPropagation(); pick(l, false); }});
+    bx.dataset.id = l.id; boxes.append(bx);
+    list.append(h('button', {class:'txrow' + (TX.sel === l.id ? ' sel' : ''), onclick:() => pick(l, true)},
+      h('span', {class:'n'}, String(n + 1)),
+      h('span', {class:'t' + (l.t ? '' : ' muted')}, l.t || 'Ligne effacée'),
+      ed ? h('span', {class:'st'}, ed.add ? 'ajouté' : 'modifié') : null));
+  });
+}
+function pick(l, scroll){
+  TX.sel = l.id; renderBoxes();
+  if (scroll) { const bx = $('txBoxes').querySelector(`[data-id="${l.id}"]`); if (bx) bx.scrollIntoView({block:'center', inline:'nearest'}); }
+  editLine(l);
+}
+let esSize = 'm', esColor = 'k';
+function syncEsChips(){
+  for (const c of document.querySelectorAll('#esAdd [data-size]')) c.setAttribute('aria-pressed', String(c.dataset.size === esSize));
+  for (const c of document.querySelectorAll('#esAdd [data-color]')) c.setAttribute('aria-pressed', String(c.dataset.color === esColor));
+}
+function editSheet(o){
+  return new Promise(res => {
+    const inp = $('esText');
+    $('esTitle').textContent = o.title; inp.value = o.value || '';
+    $('esAdd').hidden = !o.add; esSize = 'm'; esColor = 'k'; syncEsChips();
+    $('esImgRow').hidden = !!o.add || !!o.locked; $('esImg').checked = true;
+    $('esRestore').hidden = !o.canRestore; $('esDelete').hidden = !o.canDelete;
+    $('esExtra').hidden = !o.canRestore && !o.canDelete;
+    $('esSheet').hidden = false; inp.focus(); inp.select();
+    const done = v => { $('esSheet').hidden = true; ['esOk', 'esNo', 'esRestore', 'esDelete'].forEach(id => $(id).onclick = null); inp.onkeydown = null; res(v); };
+    $('esOk').onclick = () => done({action:'set', t:inp.value, img:$('esImg').checked, size:esSize, color:esColor});
+    $('esNo').onclick = () => done(null);
+    $('esRestore').onclick = () => done({action:'restore'});
+    $('esDelete').onclick = () => done({action:'delete', img:$('esImg').checked});
+    inp.onkeydown = e => { if (e.key === 'Enter') $('esOk').click(); };
+  });
+}
+function sampleBox(cv, b){
+  const W = cv.width, H = cv.height;
+  const x0 = Math.max(0, Math.floor(b[0]/1000*W)), y0 = Math.max(0, Math.floor(b[1]/1000*H));
+  const x1 = Math.min(W, Math.ceil(b[2]/1000*W)), y1 = Math.min(H, Math.ceil(b[3]/1000*H));
+  const pad = Math.max(3, Math.round((y1 - y0)*.35));
+  const X0 = Math.max(0, x0 - pad), Y0 = Math.max(0, y0 - pad), X1 = Math.min(W, x1 + pad), Y1 = Math.min(H, y1 + pad), w = X1 - X0;
+  const d = cv.getContext('2d', {willReadFrequently:true}).getImageData(X0, Y0, w, Y1 - Y0).data;
+  const ring = [], inside = [];
+  for (let i = 0, k = 0; i < d.length; i += 4, k++) {
+    const x = X0 + k % w, y = Y0 + (k / w | 0), q = [.299*d[i] + .587*d[i+1] + .114*d[i+2], d[i], d[i+1], d[i+2]];
+    (x >= x0 && x < x1 && y >= y0 && y < y1 ? inside : ring).push(q);
+  }
+  const byL = (a, c) => a[0] - c[0];
+  ring.sort(byL); inside.sort(byL);
+  const bgp = ring.length ? ring[Math.floor(ring.length*.7)] : [255, 255, 255, 255];
+  const n = Math.max(1, Math.floor(inside.length*.1)), fg = [0, 0, 0, 0];
+  for (let i = 0; i < n && i < inside.length; i++) for (let k = 0; k < 4; k++) fg[k] += inside[i][k]/n;
+  // Gras ou pas : épaisseur médiane des traits comparée à la taille du texte
+  const mid = (bgp[0] + fg[0])/2, runs = [];
+  for (let y = y0; y < y1; y++) {
+    let run = 0;
+    for (let x = x0; x <= x1; x++) {
+      const i = ((y - Y0)*w + (x - X0))*4, dark = x < x1 && (.299*d[i] + .587*d[i+1] + .114*d[i+2]) < mid;
+      if (dark) run++; else if (run) { runs.push(run); run = 0; }
+    }
+  }
+  runs.sort((a, c) => a - c);
+  const stem = runs.length ? runs[Math.floor(runs.length/2)] : 0;
+  const css = q => `rgb(${q[1]|0},${q[2]|0},${q[3]|0})`;
+  return {bg:css(bgp), fg:css(fg), stem};
+}
+function fontFor(l, p){
+  const H = p.h, y0 = l.b[1]/1000*H, y1 = l.b[3]/1000*H, bh = y1 - y0;
+  let fs = 0;
+  if (l.bl != null) { const cap = l.bl/1000*H - y0; if (cap > bh*.4 && cap <= bh*1.05) fs = cap/.72; }
+  if (!fs) fs = bh/(/[gjpqyç,;]/.test(l.t) ? .93 : .72);
+  return Math.max(6, fs)/H;
+}
+const measureCv = mk(4, 4);
+function fitAdded(e, l, p){
+  const x = measureCv.getContext('2d'); x.font = `${e.bold ? 700 : 400} ${e.fs*p.h}px ${EDIT_FONT}`;
+  const w = x.measureText(e.t).width/p.w*1000;
+  e.b[2] = Math.min(1000, e.b[0] + w); l.b = e.b.slice(); l.bl = e.by;
+}
+async function editLine(l){
+  const p = TX.p; p.edits = p.edits || [];
+  const ed = p.edits.find(e => e.lid === l.id);
+  const r = await editSheet({title:ed && ed.add ? 'Modifier le texte ajouté' : 'Modifier la ligne', value:l.t, canRestore:!!(ed && !ed.add), canDelete:true, locked:!!ed, add:false});
+  if (!r) return;
+  if (r.action === 'restore') {
+    p.edits = p.edits.filter(e => e !== ed); if (l.o != null) { l.t = l.o; delete l.o; }
+    return commitText('Ligne rétablie.');
+  }
+  const t = r.action === 'delete' ? '' : r.t.replace(/\s+/g, ' ').trim();
+  if (r.action === 'set' && t === l.t) return;
+  if (ed && ed.add) {
+    if (!t) { p.edits = p.edits.filter(e => e !== ed); p.lines = p.lines.filter(x => x !== l); TX.sel = null; }
+    else { ed.t = t; l.t = t; fitAdded(ed, l, p); }
+    return commitText(t ? 'Texte modifié.' : 'Texte supprimé.');
+  }
+  const inImage = !!ed || r.img;
+  if (inImage) {
+    if (ed) ed.t = t;
+    else { const sm = sampleBox(TX.canvas, l.b), fs = fontFor(l, p); p.edits.push({lid:l.id, b:l.b.slice(), by:l.bl, bg:sm.bg, fg:sm.fg, bold:sm.stem > fs*p.h*.115, fs, t}); }
+  }
+  if (l.o == null) l.o = l.t;
+  l.t = t;
+  commitText(!t ? 'Ligne effacée.' : inImage ? 'Ligne modifiée dans l\'image.' : 'Texte reconnu corrigé.', !inImage);
+}
+async function addAt(u, v){
+  const r = await editSheet({title:'Ajouter du texte', value:'', add:true});
+  if (!r || r.action !== 'set') return;
+  const t = r.t.replace(/\s+/g, ' ').trim(); if (!t) return;
+  const p = TX.p, fs = {s:.018, m:.026, l:.04}[r.size] || .026, fg = {k:'#1d1f22', b:'#1f3d8a', r:'#b3261e'}[r.color] || '#1d1f22';
+  const by = Math.min(.99, v + fs*.35), id = 'a' + uid();
+  const e = {lid:id, add:true, t, fs, fg, bg:null, bold:false, by:by*1000, b:[u*1000, (by - fs*.75)*1000, u*1000, (by + fs*.22)*1000]};
+  const line = {id, t, b:e.b.slice(), bl:e.by};
+  fitAdded(e, line, p);
+  p.edits = [...(p.edits || []), e]; p.lines = [...(p.lines || []), line]; TX.sel = id;
+  commitText('Texte ajouté.');
+}
+async function commitText(msg, textOnly){
+  const p = TX.p, doc = cur; p.text = linesText(p);
+  busy('Mise à jour de la page…'); await tick();
+  try {
+    if (!textOnly) { await finalize(p); await loadTxCanvas(); }
+    analyze(doc); doc.updated = Date.now(); await persist(doc);
+    busy(null); renderBoxes(); toast(msg);
+  } catch (e) { busy(null); toast('La mise à jour a échoué. Réessaie.'); }
+}
+function closeText(){ TX = null; if (cur) openDoc(cur.id); else goLib(); }
 
 /* exemple */
 async function makeSample(){
@@ -1149,7 +1670,7 @@ function wire(){
   $('docAddPick').onclick = () => { addTarget = cur; $('inPick').click(); };
   for (const id of ['inCam', 'inPick']) $(id).addEventListener('change', e => { const f = [...e.target.files]; e.target.value = ''; onFiles(f); });
   $('docBack').onclick = goLib; $('docDelete').onclick = deleteDoc; $('docPdf').onclick = exportPdf;
-  $('docTitle').addEventListener('change', async e => { const t = e.target.value.trim() || defaultTitle(); cur.title = t; e.target.value = t; cur.updated = Date.now(); await persist(cur); });
+  $('docTitle').addEventListener('change', async e => { const t = e.target.value.trim() || defaultTitle(); cur.title = t; cur.autoTitle = false; e.target.value = t; cur.updated = Date.now(); await persist(cur); });
   $('docTitle').addEventListener('keydown', e => { if (e.key === 'Enter') e.target.blur(); });
   $('edDone').onclick = editorDone; $('edCancel').onclick = editorCancel;
   for (const b of document.querySelectorAll('.tab')) b.addEventListener('click', () => E && setTab(b.dataset.tab));
@@ -1160,11 +1681,11 @@ function wire(){
   };
   $('btnFull').onclick = () => { const w = E.srcInfo.w, hh = E.srcInfo.h; E.corners = [{x:0,y:0},{x:w,y:0},{x:w,y:hh},{x:0,y:hh}]; drawCrop(); updateInfo(); };
   for (const c of document.querySelectorAll('#paneFilter .chip')) c.addEventListener('click', () => { E.filter = c.dataset.filter; syncChips(); refreshPreview(); });
-  $('btnRotate').onclick = () => { E.rot = (E.rot + 1) % 4; refreshPreview(); updateInfo(); };
+  $('btnRotate').onclick = () => { E.rot = (E.rot + 1) % 4; E.erase.forEach(s => { s.pts = s.pts.map(([u, v]) => [1 - v, u]); }); refreshPreview(); updateInfo(); };
   $('slBright').addEventListener('input', e => { E.bright = e.target.value/100; syncSliders(); schedulePreview(); });
   $('slContrast').addEventListener('input', e => { E.contrast = e.target.value/100; syncSliders(); schedulePreview(); });
   $('btnResetAdj').onclick = () => { E.bright = 0; E.contrast = 0; $('slBright').value = 0; $('slContrast').value = 0; syncSliders(); refreshPreview(); };
-  window.addEventListener('resize', () => { if (E && E.tab === 'crop' && !$('vEdit').hidden) { layoutCrop(); drawCrop(); } });
+  window.addEventListener('resize', () => { if (E && E.tab === 'crop' && !$('vEdit').hidden) { layoutCrop(); drawCrop(); } if (TX && !$('vText').hidden) layoutText(); });
   $('docShare').onclick = shareDoc;
   $('btnInstall').onclick = async () => {
     if (!installEvt) return;
@@ -1172,7 +1693,24 @@ function wire(){
     try { await installEvt.userChoice; } catch (e) {}
     installEvt = null; $('btnInstall').hidden = true;
   };
-  $('docRead').onclick = readText; $('docCopy').onclick = copyText;
+  $('docRead').onclick = () => { autoRead(cur); renderDoc(); setOcrPill('Préparation de la lecture…'); };
+  $('docCopy').onclick = copyText;
+  $('docType').addEventListener('change', e => changeType(e.target.value));
+  $('slErase').addEventListener('input', e => { E.eraseSize = +e.target.value; $('ouErase').textContent = e.target.value; });
+  $('btnEraseUndo').onclick = () => { if (E.erase.length) { E.erase.pop(); refreshPreview(); } else toast('Rien à annuler.'); };
+  $('txBack').onclick = closeText;
+  $('txAdd').onclick = () => setAdding(!TX.adding);
+  $('txZoomIn').onclick = () => { TX.zoom = Math.min(4, TX.zoom*1.5); layoutText(); };
+  $('txZoomOut').onclick = () => { TX.zoom = Math.max(1, TX.zoom/1.5); layoutText(); };
+  $('txWrap').addEventListener('click', e => {
+    if (!TX || !TX.adding) return;
+    const r = $('txWrap').getBoundingClientRect(), u = (e.clientX - r.left)/r.width, v = (e.clientY - r.top)/r.height;
+    if (u < 0 || u > 1 || v < 0 || v > 1) return;
+    setAdding(false); addAt(u, v);
+  });
+  for (const c of document.querySelectorAll('#esAdd [data-size]')) c.addEventListener('click', () => { esSize = c.dataset.size; syncEsChips(); });
+  for (const c of document.querySelectorAll('#esAdd [data-color]')) c.addEventListener('click', () => { esColor = c.dataset.color; syncEsChips(); });
+  wireErase();
   $('docFolder').addEventListener('change', e => changeFolder(e.target.value));
   $('libSearch').addEventListener('input', e => { libQuery = e.target.value; renderLib(); });
   $('busyStop').onclick = () => { if (busyStop) busyStop(); };

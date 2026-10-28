@@ -14,10 +14,19 @@ Kami est en ligne sur : https://zediir-ht.github.io/kami/
      Si tu désinstalles l'appli ou effaces les données de Chrome, les scans disparaissent :
      enregistre en PDF ce qui compte.
 
-3. Lecture du texte
-   - Faite sur le téléphone par Tesseract (moteur libre). Le premier usage télécharge
-     environ 5 Mo, ensuite tout reste en cache.
+3. Lecture du texte et type de document
+   - Le texte est lu automatiquement après chaque scan, sur le téléphone, par Tesseract
+     (moteur libre). Le premier usage télécharge environ 5 Mo, ensuite tout reste en cache.
+   - Kami reconnaît le type (facture, devis, ticket, relevé, fiche de paie, avis d'impôt,
+     ordonnance, contrat, attestation, quittance, courrier, pièce d'identité, carte de visite),
+     relève la date, le montant et l'émetteur, puis nomme et range le document.
    - Fiable sur des documents imprimés et nets, moins sur l'écriture manuscrite.
+
+   Nettoyage : le filtre « Auto » retire les ombres, blanchit le papier et rend le texte net.
+   La « Gomme » efface taches et doigts.
+
+   Modifier le texte : touche le crayon sous une page. Chaque ligne reconnue peut être
+   corrigée, remplacée dans l'image ou effacée, et « + Texte » ajoute du texte n'importe où.
 
 4. Envoyer par e-mail
    - Le bouton « Envoyer » ouvre le menu de partage d'Android avec le PDF joint :
