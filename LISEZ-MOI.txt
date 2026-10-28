@@ -1,0 +1,35 @@
+KAMI — scanner de documents, application web installable
+=========================================================
+
+Kami est en ligne sur : https://zediir-ht.github.io/kami/
+
+1. Installer sur Android
+   - Ouvre l'adresse dans Chrome.
+   - Touche « Installer » dans le ciel en haut de l'appli, ou menu ⋮ → « Installer l'application ».
+   - Chrome crée une vraie appli Android : icône dans le tiroir d'applis, plein écran,
+     fonctionne hors connexion. Pas besoin de fichier APK.
+
+2. Où sont mes documents ?
+   - Uniquement sur le téléphone, dans le stockage de l'appli. Rien n'est envoyé sur un serveur.
+     Si tu désinstalles l'appli ou effaces les données de Chrome, les scans disparaissent :
+     enregistre en PDF ce qui compte.
+
+3. Lecture du texte
+   - Faite sur le téléphone par Tesseract (moteur libre). Le premier usage télécharge
+     environ 5 Mo, ensuite tout reste en cache.
+   - Fiable sur des documents imprimés et nets, moins sur l'écriture manuscrite.
+
+4. Envoyer par e-mail
+   - Le bouton « Envoyer » ouvre le menu de partage d'Android avec le PDF joint :
+     Gmail, Outlook, WhatsApp…
+
+5. Publier une mise à jour
+   - Remplace les fichiers dans le dépôt, puis change la ligne VERSION dans sw.js
+     (kami-v2, kami-v3…) pour que le téléphone récupère la nouvelle version.
+
+6. Héberger ailleurs
+   - Le dossier fonctionne sur n'importe quel hébergement en HTTPS, à la racine ou dans
+     un sous-dossier : tous les chemins sont relatifs.
+
+Composants libres inclus : Tesseract.js et tesseract.js-core (Apache 2.0, licences dans ocr/),
+polices Zen Maru Gothic et Kaisei Decol (SIL Open Font License).
