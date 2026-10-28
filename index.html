@@ -520,7 +520,9 @@ function detect(src){
     if (!r) return null;
     const W = src.width, H = src.height;
     if (r.full) return [{x:0, y:0}, {x:W, y:0}, {x:W, y:H}, {x:0, y:H}];
-    return r.quad.map(p => ({x:Math.min(W, Math.max(0, (p[0] + .5)/sc)), y:Math.min(H, Math.max(0, (p[1] + .5)/sc))}));
+    // léger retrait vers l'intérieur : mieux vaut perdre un liseré de marge que garder un bout de table
+    const cx = r.quad.reduce((s, p) => s + p[0], 0)/4, cy = r.quad.reduce((s, p) => s + p[1], 0)/4, k = .006;
+    return r.quad.map(p => ({x:Math.min(W, Math.max(0, (p[0] + (cx - p[0])*k + .5)/sc)), y:Math.min(H, Math.max(0, (p[1] + (cy - p[1])*k + .5)/sc))}));
   } catch (e) { return null; }
 }
 
@@ -778,16 +780,33 @@ function kUp(a, w, h, W, H, f){ // bilinéaire
   return o;
 }
 const kPct = (arr, p) => { const s = Float32Array.from(arr).sort(); return s[Math.min(s.length-1, Math.floor(s.length*p))]; };
-// Préparation (une fois par cadrage) : fond du papier par canal + balance des blancs + niveaux
+function kMin(a, w, h, r){
+  const t = new Float32Array(a.length), o = new Float32Array(a.length);
+  for (let y = 0; y < h; y++) { const row = y*w; for (let x = 0; x < w; x++) { let m = 1e9; const x0 = x-r < 0 ? 0 : x-r, x1 = x+r >= w ? w-1 : x+r; for (let i = x0; i <= x1; i++) if (a[row+i] < m) m = a[row+i]; t[row+x] = m; } }
+  for (let x = 0; x < w; x++) for (let y = 0; y < h; y++) { let m = 1e9; const y0 = y-r < 0 ? 0 : y-r, y1 = y+r >= h ? h-1 : y+r; for (let j = y0; j <= y1; j++) if (t[j*w+x] < m) m = t[j*w+x]; o[y*w+x] = m; }
+  return o;
+}
+// Préparation (une fois par cadrage)
+// Fond du papier = luminosité (fermeture + médiane : l'encre disparaît, les bords d'ombre restent à leur place)
+// × dominante de couleur très lissée (pas de taches de couleur).
 function kPrep(rgba, W, H){
   const N = W*H, f = Math.max(2, Math.round(Math.max(W, H)/550));
+  const w = Math.ceil(W/f), h = Math.ceil(H/f), M = w*h;
+  const low = [new Float32Array(M), new Float32Array(M), new Float32Array(M), new Float32Array(M)], cnt = new Float32Array(M);
+  for (let y = 0; y < H; y++) { const yy = (y/f)|0; for (let x = 0; x < W; x++) {
+    const j = (y*W + x)*4, q = yy*w + ((x/f)|0), r = rgba[j], g = rgba[j+1], b = rgba[j+2];
+    low[0][q] += r; low[1][q] += g; low[2][q] += b; low[3][q] += .299*r + .587*g + .114*b; cnt[q]++; } }
+  for (let k = 0; k < 4; k++) for (let q = 0; q < M; q++) low[k][q] /= cnt[q];
+  const m = Math.min(w, h), rd = Math.max(2, Math.round(m/110)), rm = Math.max(6, Math.round(m/20)), rb = Math.max(6, Math.round(m/12));
+  const close = a => kMin(kMax(a, w, h, rd), w, h, rd);
+  const cL = close(low[3]);
+  const bgL = kBoxBlur(kMedian(cL, w, h, rm), w, h, 1);
+  const bigL = kBoxBlur(kBoxBlur(cL, w, h, rb), w, h, rb);
   const bg = new Uint8ClampedArray(N*3);
   for (let k = 0; k < 3; k++) {
-    const a = new Float32Array(N); for (let i = 0, j = k; i < N; i++, j += 4) a[i] = rgba[j];
-    const d = kDown(a, W, H, f), m = Math.min(d.w, d.h);
-    const rd = Math.max(2, Math.round(m/110)), rm = Math.max(4, Math.round(m/32));
-    let b = kMax(d.a, d.w, d.h, rd); b = kMedian(b, d.w, d.h, rm); b = kBoxBlur(b, d.w, d.h, 2);
-    const up = kUp(b, d.w, d.h, W, H, f);
+    const bigC = kBoxBlur(kBoxBlur(close(low[k]), w, h, rb), w, h, rb), b = new Float32Array(M);
+    for (let q = 0; q < M; q++) b[q] = bgL[q]*Math.min(1.6, Math.max(.4, bigC[q]/Math.max(1, bigL[q])));
+    const up = kUp(b, w, h, W, H, f);
     for (let i = 0, j = k; i < N; i++, j += 3) bg[j] = up[i] < 8 ? 8 : up[i];
   }
   const step = Math.max(1, Math.floor(N/60000)), samp = [];
@@ -802,9 +821,9 @@ function kPrep(rgba, W, H){
     vals.forEach((v, i) => { if (lum[i] > paper*.92) { wb[0] += v[0]; wb[1] += v[1]; wb[2] += v[2]; c++; } });
     for (let k = 0; k < 3; k++) wb[k] = 1/Math.max(.3, c ? wb[k]/c : 1);
     const l2 = vals.map(v => .299*v[0]*wb[0] + .587*v[1]*wb[1] + .114*v[2]*wb[2]).sort((a, b) => a - b);
-    const white = Math.min(1, l2[Math.floor(l2.length*.5)]*.91);
+    const white = Math.min(1, l2[Math.floor(l2.length*.5)]*.9);
     let black = l2[Math.floor(l2.length*.006)];
-    black = Math.min(black + (white - black)*.12, white - .3);
+    black = Math.min(black + (white - black)*.06, white - .35);
     return {wb, white, black};
   };
   return {W, H, bg, auto:calib(false), doc:calib(true)};
@@ -813,30 +832,64 @@ function kPrep(rgba, W, H){
 function kRender(rgba, P, mode, bright, contrast){
   const {W, H, bg} = P, N = W*H, out = new Uint8ClampedArray(N*4), doc = mode === 'doc', C = doc ? P.doc : P.auto;
   const {wb, white, black} = C, span = 1/(white - black), k1 = 1 + (contrast || 0), br = bright || 0;
-  const gam = mode === 'auto' ? 1.45 : mode === 'gray' ? 1.35 : 1.15, sat = mode === 'auto' ? 1.2 : 1;
+  const gam = mode === 'auto' ? 1.3 : mode === 'gray' ? 1.25 : 1.1, sat0 = mode === 'auto' ? 1.15 : 1;
   const LUT = new Float32Array(1025);
   for (let i = 0; i <= 1024; i++) { let t = Math.pow(i/1024, gam); t = (t - .5)*k1 + .5 + br; LUT[i] = (t < 0 ? 0 : t > 1 ? 1 : t)*255; }
   const lev = v => { let t = (v - black)*span; return t < 0 ? 0 : t > 1 ? 1 : t; };
-  for (let i = 0, j = 0, q = 0; i < N; i++, j += 4, q += 3) {
-    let r, g, b;
-    if (doc) { const bl = .299*bg[q] + .587*bg[q+1] + .114*bg[q+2]; r = rgba[j]/bl*wb[0]; g = rgba[j+1]/bl*wb[1]; b = rgba[j+2]/bl*wb[2]; }
-    else { r = rgba[j]/bg[q]*wb[0]; g = rgba[j+1]/bg[q+1]*wb[1]; b = rgba[j+2]/bg[q+2]*wb[2]; }
-    const L = .299*r + .587*g + .114*b;
+  for (let y = 0, i = 0; y < H; y++) for (let x = 0; x < W; x++, i++) {
+    const j = i*4, q = i*3;
+    let r = rgba[j], g = rgba[j+1], b = rgba[j+2];
+    // dans l'ombre, le bruit est amplifié par la division : on le lisse un peu
+    const bl = .299*bg[q] + .587*bg[q+1] + .114*bg[q+2];
+    if (bl < 170 && x > 0 && y > 0 && x < W-1 && y < H-1) {
+      const wgt = Math.min(1, (170 - bl)/90); let sr = 0, sg = 0, sb = 0;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const jj = j + (dy*W + dx)*4; sr += rgba[jj]; sg += rgba[jj+1]; sb += rgba[jj+2]; }
+      r += (sr/9 - r)*wgt; g += (sg/9 - g)*wgt; b += (sb/9 - b)*wgt;
+    }
+    if (doc) { r = r/bl*wb[0]; g = g/bl*wb[1]; b = b/bl*wb[2]; }
+    else { r = r/bg[q]*wb[0]; g = g/bg[q+1]*wb[1]; b = b/bg[q+2]*wb[2]; }
+    const L = .299*r + .587*g + .114*b, tL = lev(L);
     if (mode === 'gray' || mode === 'bw') {
-      let t = lev(L), v;
-      if (mode === 'bw') { t = (t - .42)/.3; t = t < 0 ? 0 : t > 1 ? 1 : t; t = t*t*(3 - 2*t); t = (t - .5)*k1 + .5 + br; v = (t < 0 ? 0 : t > 1 ? 1 : t)*255; }
+      let t = tL, v;
+      if (mode === 'bw') { t = (t - .45)/.3; t = t < 0 ? 0 : t > 1 ? 1 : t; t = t*t*(3 - 2*t); t = (t - .5)*k1 + .5 + br; v = (t < 0 ? 0 : t > 1 ? 1 : t)*255; }
       else v = LUT[(t*1024)|0];
       out[j] = out[j+1] = out[j+2] = v;
     } else {
-      const tl = LUT[(lev(L)*1024)|0];
+      // le papier redevient neutre : les zones claires perdent leur teinte, l'encre de couleur la garde
+      let u = (tL - .55)/.37; u = u < 0 ? 0 : u > 1 ? 1 : u;
+      const sat = sat0*(1 - u*u*(3 - 2*u));
+      const tl = LUT[(tL*1024)|0];
       const cr = LUT[(lev(r)*1024)|0], cg = LUT[(lev(g)*1024)|0], cb = LUT[(lev(b)*1024)|0];
       out[j] = tl + (cr - tl)*sat; out[j+1] = tl + (cg - tl)*sat; out[j+2] = tl + (cb - tl)*sat;
     }
     out[j+3] = 255;
   }
-  if (mode === 'auto') kSharpen(out, W, H, .6);
-  kBorder(out, W, H);
+  if (mode === 'auto') kSharpen(out, W, H, .5);
+  kTrim(out, W, H);
   return out;
+}
+// Restes de table sur les bords : bandes sombres ou colorées collées au bord, effacées jusqu'au papier
+function kTrim(o, W, H){
+  const bad = i => { const r = o[i], g = o[i+1], b = o[i+2]; return (.299*r + .587*g + .114*b) < 232 || Math.max(r, g, b) - Math.min(r, g, b) > 60; };
+  const side = (len, depth, at) => { // at(t, d) -> index du pixel ; t le long du bord, d vers l'intérieur
+    const D = Math.max(3, Math.round(depth*.045)), segs = 8, seg = Math.ceil(len/segs);
+    for (let s0 = 0; s0 < len; s0 += seg) {
+      const s1 = Math.min(len, s0 + seg); let cut = Math.max(2, Math.round(depth*.004)), gap = 0;
+      // si l'intérieur juste après la bande est lui aussi chargé, c'est du contenu (billet, photo) : on n'y touche pas
+      let inner = 0, tot = 0;
+      for (let d = D; d < Math.min(depth, Math.round(D*1.6)); d++) for (let t = s0; t < s1; t++) { tot++; if (bad(at(t, d))) inner++; }
+      const busy = tot && inner/tot > .3;
+      for (let d = 0; d < D && !busy; d++) {
+        let n = 0; for (let t = s0; t < s1; t++) if (bad(at(t, d))) n++;
+        if (n > (s1 - s0)*.12) { cut = d + 2; gap = 0; } else if (++gap > 2) break;
+      }
+      for (let d = 0; d < Math.min(cut, D + 2); d++) for (let t = s0; t < s1; t++) { const i = at(t, d); o[i] = o[i+1] = o[i+2] = 255; }
+    }
+  };
+  side(W, H, (t, d) => (d*W + t)*4);
+  side(W, H, (t, d) => ((H - 1 - d)*W + t)*4);
+  side(H, W, (t, d) => (t*W + d)*4);
+  side(H, W, (t, d) => (t*W + W - 1 - d)*4);
 }
 function kClean(rgba, W, H, mode, bright, contrast){ return kRender(rgba, kPrep(rgba, W, H), mode, bright, contrast); }
 function kSharpen(o, W, H, amt){

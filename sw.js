@@ -1,6 +1,6 @@
 // Kami : fonctionnement hors ligne.
 // Pour publier une mise à jour, change le numéro de VERSION ci-dessous.
-const VERSION = 'kami-v3';
+const VERSION = 'kami-v4';
 const SHELL = [
   './', './index.html', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png', './icons/apple-touch-icon.png',
