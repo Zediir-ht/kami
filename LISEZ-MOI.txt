@@ -9,6 +9,13 @@ Kami est en ligne sur : https://zediir-ht.github.io/kami/
    - Chrome crée une vraie appli Android : icône dans le tiroir d'applis, plein écran,
      fonctionne hors connexion. Pas besoin de fichier APK.
 
+   Scanner : « Scanner » ouvre un viseur en direct. Le contour de la feuille s'affiche en temps réel
+   et Kami déclenche tout seul quand l'image est stable (bouton « Auto » pour désactiver).
+   Enchaîne les pages, puis « Terminé ». La détection combine un petit modèle d'IA
+   (DocCornerNet, licence MIT, dans ml/) et un calage précis sur le contraste des bords.
+   Au recadrage, les coins et les milieux de côtés s'aimantent au bord de la feuille.
+   Le premier usage du viseur télécharge environ 14 Mo (moteur d'IA), ensuite tout reste en cache.
+
 2. Où sont mes documents ?
    - Uniquement sur le téléphone, dans le stockage de l'appli. Rien n'est envoyé sur un serveur.
      Si tu désinstalles l'appli ou effaces les données de Chrome, les scans disparaissent :
@@ -41,4 +48,5 @@ Kami est en ligne sur : https://zediir-ht.github.io/kami/
      un sous-dossier : tous les chemins sont relatifs.
 
 Composants libres inclus : Tesseract.js et tesseract.js-core (Apache 2.0, licences dans ocr/),
+ONNX Runtime Web (Microsoft, MIT) et le modèle DocCornerNet de scanic (MIT), licences dans ml/,
 polices Zen Maru Gothic et Kaisei Decol (SIL Open Font License).

@@ -204,6 +204,26 @@ svg.i{width:22px; height:22px; stroke:currentColor; fill:none; stroke-width:1.9;
 .txrow .n{font-size:11px; color:var(--muted); min-width:2ch; font-variant-numeric:tabular-nums}
 .txrow .t{flex:1; min-width:0; overflow-wrap:anywhere}
 .txrow .st{font-size:11px; font-weight:700; color:var(--ed-line)}
+/* Caméra : toujours sombre, quel que soit le thème */
+.view.cam{max-width:none; padding:0; position:relative; background:#05080c; overflow:hidden}
+#camVideo,#camOverlay{position:absolute; inset:0; width:100%; height:100%}
+#camVideo{object-fit:contain; background:#05080c}
+.cam-flash{position:absolute; inset:0; background:#fff; animation:flash .35s ease-out forwards; pointer-events:none}
+@keyframes flash{from{opacity:.85} to{opacity:0}}
+.cam-top{position:absolute; left:0; right:0; top:0; display:flex; align-items:center; gap:10px; padding:calc(env(safe-area-inset-top, 0px) + 12px) var(--gut-r) 12px var(--gut-l); background:linear-gradient(rgba(0,0,0,.55), rgba(0,0,0,0))}
+.cam-status{flex:1; text-align:center; color:#fff; font-weight:700; font-size:15px; text-shadow:0 1px 6px rgba(0,0,0,.6)}
+.cam-btn{min-width:44px; height:44px; border-radius:999px; border:0; background:rgba(255,255,255,.16); color:#fff; display:grid; place-items:center; cursor:pointer; font-weight:700; padding:0 12px}
+.cam-btn[aria-pressed="true"]{background:#fff; color:#111}
+.cam-bottom{position:absolute; left:0; right:0; bottom:0; display:grid; grid-template-columns:1fr auto 1fr; align-items:center; padding:20px var(--gut-r) calc(env(safe-area-inset-bottom, 0px) + 22px) var(--gut-l); background:linear-gradient(rgba(0,0,0,0), rgba(0,0,0,.6))}
+.shutter{grid-column:2; width:76px; height:76px; border-radius:50%; border:4px solid #fff; background:transparent; padding:5px; cursor:pointer}
+.shutter span{display:block; width:100%; height:100%; border-radius:50%; background:#fff; transition:transform .15s}
+.shutter:active span{transform:scale(.88)}
+.shutter.armed span{background:#F2B632}
+.cam-thumb{grid-column:1; justify-self:start; position:relative; width:52px; height:66px; padding:0; border:2px solid #fff; border-radius:8px; overflow:hidden; background:#222; cursor:pointer}
+.cam-thumb img{width:100%; height:100%; object-fit:cover; display:block}
+.cam-thumb span{position:absolute; right:-2px; top:-2px; min-width:22px; height:22px; border-radius:999px; background:#F2B632; color:#2A1F00; font-size:12px; font-weight:700; display:grid; place-items:center; padding:0 5px}
+.cam-done{grid-column:3; justify-self:end; min-height:44px; padding:0 18px; border-radius:999px; border:0; background:#fff; color:#111; font-weight:700; cursor:pointer}
+.cam-btn:focus-visible,.shutter:focus-visible,.cam-thumb:focus-visible,.cam-done:focus-visible{outline:3px solid #F2B632; outline-offset:2px}
 @media (prefers-reduced-motion: reduce){
   .scene .clouds,.scene .clouds2,.illus .plane{animation:none}
   .spin{animation-duration:2.5s}
@@ -222,6 +242,7 @@ svg.i{width:22px; height:22px; stroke:currentColor; fill:none; stroke-width:1.9;
   <symbol id="i-left" viewBox="0 0 24 24"><path d="M14 6l-6 6 6 6"/></symbol>
   <symbol id="i-right" viewBox="0 0 24 24"><path d="M10 6l6 6-6 6"/></symbol>
   <symbol id="i-wand" viewBox="0 0 24 24"><path d="M5 19L15 9"/><path d="M14 4v3M12.5 5.5h3M19 10v3M17.5 11.5h3M8 4v2M7 5h2"/></symbol>
+  <symbol id="i-flash" viewBox="0 0 24 24"><path d="M13 3L5 13h6l-1 8 8-10h-6z"/></symbol>
   <symbol id="i-full" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="16" rx="1"/></symbol>
   <symbol id="i-send" viewBox="0 0 24 24"><path d="M21 3L10 14"/><path d="M21 3l-7 18-4-7-7-4 18-7z"/></symbol>
   <symbol id="i-pen" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></symbol>
@@ -323,7 +344,7 @@ svg.i{width:22px; height:22px; stroke:currentColor; fill:none; stroke-width:1.9;
     <div class="tabbody" id="paneCrop">
       <button class="btn sm" id="btnDetect"><svg class="i"><use href="#i-wand"/></svg>Détecter</button>
       <button class="btn sm" id="btnFull"><svg class="i"><use href="#i-full"/></svg>Page entière</button>
-      <div class="hint">Glisse les coins dorés. Une loupe t'aide à viser juste.</div>
+      <div class="hint">Glisse un coin ou le milieu d'un côté : il s'aimante au bord de la feuille.</div>
     </div>
     <div class="tabbody" id="paneFilter" hidden>
       <button class="chip" data-filter="auto" aria-pressed="true">Auto</button>
@@ -343,6 +364,24 @@ svg.i{width:22px; height:22px; stroke:currentColor; fill:none; stroke-width:1.9;
       <button class="btn sm" id="btnEraseUndo"><svg class="i"><use href="#i-back"/></svg>Annuler le dernier trait</button>
       <div class="hint">Passe le doigt sur une tache, une ombre ou un doigt pris en photo.</div>
     </div>
+  </div>
+</section>
+
+<!-- Caméra -->
+<section class="view cam" id="vCam" hidden>
+  <video id="camVideo" playsinline muted autoplay></video>
+  <canvas id="camOverlay" aria-hidden="true"></canvas>
+  <div class="cam-flash" id="camFlash" hidden></div>
+  <div class="cam-top">
+    <button class="cam-btn" id="camClose" aria-label="Fermer la caméra"><svg class="i"><use href="#i-close"/></svg></button>
+    <div class="cam-status" id="camStatus" role="status">Cadre la feuille</div>
+    <button class="cam-btn" id="camTorch" aria-label="Lampe" aria-pressed="false" hidden><svg class="i"><use href="#i-flash"/></svg></button>
+    <button class="cam-btn cam-auto" id="camAuto" aria-pressed="true">Auto</button>
+  </div>
+  <div class="cam-bottom">
+    <button class="cam-thumb" id="camThumb" aria-label="Terminer et voir les pages" hidden><img id="camThumbImg" alt=""><span id="camCount">0</span></button>
+    <button class="shutter" id="camShot" aria-label="Prendre la photo"><span></span></button>
+    <button class="cam-done" id="camDone" hidden>Terminé</button>
   </div>
 </section>
 
@@ -482,7 +521,7 @@ function ask(msg, yes, o = {}){
     if (o.input) inp.focus(); else if (o.text) { ta.focus(); ta.select(); } else n.focus();
   });
 }
-function show(name){ for (const v of ['vLib','vDoc','vEdit','vText']) $(v).hidden = v !== name; }
+function show(name){ for (const v of ['vLib','vDoc','vEdit','vText','vCam']) $(v).hidden = v !== name; }
 const cssv = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const slug = t => (t || 'scan').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'scan';
 
@@ -511,12 +550,45 @@ function defaultCorners(w, hh){
   const m = .05;
   return [{x:w*m,y:hh*m},{x:w*(1-m),y:hh*m},{x:w*(1-m),y:hh*(1-m)},{x:w*m,y:hh*(1-m)}];
 }
-function detect(src){
+/* Modèle d'IA de détection des coins (DocCornerNet, licence MIT) exécuté par ONNX Runtime Web (Microsoft, MIT) */
+let mlSess = null, mlLoading = null, mlBusy = false;
+function loadMl(){
+  if (mlSess) return Promise.resolve(mlSess);
+  if (!mlLoading) mlLoading = (async () => {
+    if (!window.ort) await loadScript('./ml/ort.wasm.min.js');
+    ort.env.wasm.wasmPaths = new URL('./ml/', location.href).href;
+    ort.env.wasm.numThreads = 1; ort.env.wasm.proxy = false;
+    const res = await fetch('./ml/doccornernet_lean.ort'); if (!res.ok) throw new Error('modèle');
+    mlSess = await ort.InferenceSession.create(new Uint8Array(await res.arrayBuffer()), {executionProviders:['wasm'], graphOptimizationLevel:'all'});
+    return mlSess;
+  })().catch(e => { mlLoading = null; throw e; });
+  return mlLoading;
+}
+const ML_CV = mk(224, 224), ML_MEAN = [.485, .456, .406], ML_STD = [.229, .224, .225];
+// Coins proposés par l'IA pour une image (canvas ou vidéo) de taille w×h — null si indisponible
+async function mlCorners(src, w, h, wait){
+  let sess = mlSess;
+  if (!sess) { if (!wait) { loadMl().catch(() => {}); return null; } try { sess = await loadMl(); } catch (e) { return null; } }
+  if (mlBusy) return null;
+  mlBusy = true;
+  try {
+    const x = ML_CV.getContext('2d', {willReadFrequently:true});
+    x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'medium'; x.drawImage(src, 0, 0, 224, 224);
+    const d = x.getImageData(0, 0, 224, 224).data, f = new Float32Array(224*224*3);
+    for (let i = 0, j = 0; i < d.length; i += 4, j += 3) for (let k = 0; k < 3; k++) f[j+k] = (d[i+k]/255 - ML_MEAN[k])/ML_STD[k];
+    const o = await sess.run({[sess.inputNames[0]]: new ort.Tensor('float32', f, [1, 224, 224, 3])});
+    let c = null, sc = null; for (const k in o) { const v = o[k].data; if (v.length === 8) c = v; else if (v.length === 1) sc = v[0]; }
+    if (!c) return null;
+    return {quad:[0, 1, 2, 3].map(i => [c[2*i]*w, c[2*i+1]*h]), score:sc == null ? 1 : 1/(1 + Math.exp(-sc))};
+  } catch (e) { return null; } finally { mlBusy = false; }
+}
+async function detect(src){
   try {
     const sc = 480/Math.max(src.width, src.height), w = Math.max(8, Math.round(src.width*sc)), h = Math.max(8, Math.round(src.height*sc));
     const t = mk(w, h), x = t.getContext('2d', {willReadFrequently:true});
     x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high'; x.drawImage(src, 0, 0, w, h);
-    const r = kDetect(x.getImageData(0, 0, w, h).data, w, h);
+    const ml = await mlCorners(t, w, h, true);
+    const r = kDetect(x.getImageData(0, 0, w, h).data, w, h, ml);
     if (!r) return null;
     const W = src.width, H = src.height;
     if (r.full) return [{x:0, y:0}, {x:W, y:0}, {x:W, y:H}, {x:0, y:H}];
@@ -601,13 +673,15 @@ function kQuadFromHull(h){
   }
   return kOrder(q);
 }
-function kDetect(rgba, w, h){
+// Champ de mesure réutilisable : luminosité, saturation, notes de contour, affinage
+function kField(rgba, w, h){
   const N = w*h, L0 = new Float32Array(N), S0 = new Float32Array(N);
   for (let i = 0, j = 0; j < N; i += 4, j++) {
     const r = rgba[i], g = rgba[i+1], b = rgba[i+2];
     L0[j] = .299*r + .587*g + .114*b; S0[j] = Math.max(r, g, b) - Math.min(r, g, b);
   }
   const L = kBoxBlur(kBoxBlur(L0, w, h, 1), w, h, 1), S = kBoxBlur(kBoxBlur(S0, w, h, 1), w, h, 1);
+  const Rc = kBoxBlur(Float32Array.from({length:N}, (_, j) => rgba[j*4]), w, h, 2), Bc = kBoxBlur(Float32Array.from({length:N}, (_, j) => rgba[j*4+2]), w, h, 2);
   const diag = Math.hypot(w, h), area = w*h;
   const val = (A, x, y) => { x = x < 0 ? 0 : x > w - 1 ? w - 1 : x; y = y < 0 ? 0 : y > h - 1 ? h - 1 : y; const x0 = x|0, y0 = y|0, x1 = Math.min(w-1, x0+1), y1 = Math.min(h-1, y0+1), fx = x - x0, fy = y - y0; return A[y0*w+x0]*(1-fx)*(1-fy) + A[y0*w+x1]*fx*(1-fy) + A[y1*w+x0]*(1-fx)*fy + A[y1*w+x1]*fx*fy; };
   // Note d'un contour : contraste entre l'intérieur et l'extérieur, le long des 4 côtés
@@ -635,6 +709,64 @@ function kDetect(rgba, w, h){
     }
     const mean = sides.reduce((s, v) => s + v, 0)/4, min = Math.min(...sides);
     return (.55*mean + .45*min)*(.8 + .2*Math.sqrt(A/area));
+  }
+  // Contraste de zones : on compare des bandes larges de part et d'autre du bord (un trait imprimé sur du papier blanc ne compte pas)
+  function band(q){
+    if (!kConvexOk(q)) return 0;
+    const cx = (q[0][0]+q[1][0]+q[2][0]+q[3][0])/4, cy = (q[0][1]+q[1][1]+q[2][1]+q[3][1])/4, dd = Math.max(2, diag/200), sides = [];
+    for (let k = 0; k < 4; k++) {
+      const a = q[k], b = q[(k+1)%4], len = Math.hypot(b[0]-a[0], b[1]-a[1]) || 1;
+      let nx = (b[1]-a[1])/len, ny = -(b[0]-a[0])/len;
+      if (((a[0]+b[0])/2 - cx)*nx + ((a[1]+b[1])/2 - cy)*ny < 0) { nx = -nx; ny = -ny; }
+      const vals = []; let border = 0;
+      for (let i = 0; i < 20; i++) {
+        const t = .08 + .84*i/19, px = a[0] + (b[0]-a[0])*t, py = a[1] + (b[1]-a[1])*t;
+        let li = 0, lo = 0, si = 0, so = 0, ri = 0, ro = 0, bi = 0, bo = 0, ok = true;
+        for (const f of [2, 3, 4, 5]) {
+          const ox = px + nx*dd*f, oy = py + ny*dd*f, ix = px - nx*dd*f, iy = py - ny*dd*f; if (ox < 0 || oy < 0 || ox > w-1 || oy > h-1) { ok = false; break; }
+          lo += val(L, ox, oy); so += val(S, ox, oy); li += val(L, ix, iy); si += val(S, ix, iy);
+          ro += val(Rc, ox, oy); bo += val(Bc, ox, oy); ri += val(Rc, ix, iy); bi += val(Bc, ix, iy);
+        }
+        if (!ok) { border++; continue; }
+        // même teinte des deux côtés (ombre sur le papier, papier sur papier) : l'écart de luminosité compte moins
+        const cd = Math.abs(ri/Math.max(1, li) - ro/Math.max(1, lo)) + Math.abs(bi/Math.max(1, li) - bo/Math.max(1, lo));
+        const wl = cd < .08 ? .35 : 1;
+        vals.push(wl*Math.abs(li - lo)/4 + .7*Math.abs(si - so)/4 + 60*cd);
+      }
+      if (border > 12) { sides.push(6); continue; }
+      vals.sort((x, y) => x - y); sides.push(vals.length ? vals[Math.floor(vals.length*.35)] : 0);
+    }
+    return .5*sides.reduce((s, v) => s + v, 0)/4 + .5*Math.min(...sides);
+  }
+  const d0 = Math.max(2, diag/220);
+  // affinage : chaque coin bouge tant que le contraste augmente (sans s'éloigner de plus de maxShift du départ ; only = un seul coin)
+  const refine = (q0, steps, maxShift, only) => {
+    let q = q0.map(p => p.slice()), cur = score(q, d0*.8, 48);
+    if (cur < 0) return {q, cur};
+    const ks = only == null ? [0, 1, 2, 3] : [].concat(only);
+    for (const step of steps) {
+      for (let it = 0; it < 12; it++) {
+        let moved = false;
+        for (const k of ks) for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]]) {
+          const t = q.map(p => p.slice()); t[k][0] = Math.min(w-1, Math.max(0, t[k][0] + dx*step)); t[k][1] = Math.min(h-1, Math.max(0, t[k][1] + dy*step));
+          if (Math.hypot(t[k][0] - q0[k][0], t[k][1] - q0[k][1]) > maxShift) continue;
+          const sc = score(t, d0*.8, 48); if (sc > cur) { cur = sc; q = t; moved = true; }
+        }
+        if (!moved) break;
+      }
+    }
+    return {q, cur};
+  };
+  return {w, h, N, L, S, diag, area, d0, score, band, refine};
+}
+// ml : {quad, score} proposé par le modèle d'IA (mêmes coordonnées), fast : affinage seul (viseur en direct)
+function kDetect(rgba, w, h, ml, fast){
+  const F = kField(rgba, w, h), {N, L, S, diag, d0, score, band, refine} = F;
+  const clampQ = q => kOrder(q.map(p => [Math.min(w-1, Math.max(0, p[0])), Math.min(h-1, Math.max(0, p[1]))]));
+  if (fast) {
+    if (!ml) return null;
+    const loc = refine(clampQ(ml.quad), [diag/200, diag/400], diag*.03);
+    return {quad:loc.q, score:loc.cur, full:false, source:'ia'};
   }
   const cands = [];
   // a) segmentation : la feuille est la grande zone claire et peu colorée
@@ -716,23 +848,26 @@ function kDetect(rgba, w, h){
   }
   // c) cadre complet en dernier recours
   cands.push([[0, 0], [w-1, 0], [w-1, h-1], [0, h-1]]);
-  const d0 = Math.max(2, diag/220);
+  const full = cands[cands.length-1];
   let best = null, bs = -1;
   for (const q of cands) { const s = score(q, d0, 24); if (s > bs) { bs = s; best = q; } }
   if (!best) return null;
-  // affinage : on déplace chaque coin tant que le contraste augmente
-  let q = best.map(p => p.slice()), cur = score(q, d0*.8, 48);
-  for (const step of [diag/120, diag/240, diag/480, diag/960]) {
-    for (let it = 0; it < 12; it++) {
-      let moved = false;
-      for (let k = 0; k < 4; k++) for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]]) {
-        const t = q.map(p => p.slice()); t[k][0] = Math.min(w-1, Math.max(0, t[k][0] + dx*step)); t[k][1] = Math.min(h-1, Math.max(0, t[k][1] + dy*step));
-        const s = score(t, d0*.8, 48); if (s > cur) { cur = s; q = t; moved = true; }
-      }
-      if (!moved) break;
+  const classic = refine(best, [diag/120, diag/240, diag/480, diag/960], Infinity);
+  // le modèle d'IA, s'il voit une feuille, décide de la zone ; le contraste ne sert qu'à caler les bords
+  if (ml && ml.score > .5) {
+    const mq = clampQ(ml.quad);
+    const loc = refine(mq, [diag/300, diag/600, diag/1200], diag*.035);
+    const gap = Math.max(...mq.map((p, k) => Math.hypot(p[0] - classic.q[k][0], p[1] - classic.q[k][1])));
+    let pick;
+    if (gap < diag*.05) pick = classic.cur > loc.cur ? classic : loc;      // d'accord : le plus net gagne
+    else {                                                                 // désaccord : contraste de zones, avec un avantage à l'IA
+      const bc = band(classic.q), bm = Math.max(.5, band(loc.q)), ac = Math.abs(kArea(classic.q)), am = Math.abs(kArea(loc.q));
+      const strong = bc > bm*1.75 && !(am > ac*1.15 && bc < bm*3.5);
+      pick = strong ? classic : loc;
     }
+    return {quad:pick.q, score:pick.cur, full:false, source:pick === classic ? 'contraste' : 'ia'};
   }
-  return {quad:q, score:cur, full: best === cands[cands.length-1]};
+  return {quad:classic.q, score:classic.cur, full:best === full, source:'contraste'};
 }
 
 // ---------------------------------------------------------------------------
@@ -1059,7 +1194,7 @@ async function ingest(file){
   const w = Math.max(1, Math.round(bw*s)), hh = Math.max(1, Math.round(bh*s));
   const c = mk(w, hh); c.getContext('2d', {willReadFrequently:true}).drawImage(bmp, 0, 0, w, hh);
   const orig = await toBlob(c, 'image/jpeg', .92);
-  const page = {id:uid(), orig, ow:w, oh:hh, corners:detect(c) || defaultCorners(w, hh), filter:'auto', rot:0, bright:0, contrast:0, out:null, thumb:null, w:0, h:0};
+  const page = {id:uid(), orig, ow:w, oh:hh, corners:(await detect(c)) || defaultCorners(w, hh), filter:'auto', rot:0, bright:0, contrast:0, out:null, thumb:null, w:0, h:0};
   setSrc(page.id, {canvas:c, w, h:hh, data:null});
   return page;
 }
@@ -1638,13 +1773,20 @@ function drawCrop(){
   x.stroke(); x.restore();
   x.strokeStyle = HC; x.lineWidth = 2; x.beginPath();
   x.moveTo(P[0].x, P[0].y); for (let i = 1; i < 4; i++) x.lineTo(P[i].x, P[i].y); x.closePath(); x.stroke();
+  // poignées au milieu des côtés
+  for (let k = 0; k < 4; k++) {
+    const a = P[k], b = P[(k+1)%4], mx = (a.x + b.x)/2, my = (a.y + b.y)/2, ang = Math.atan2(b.y - a.y, b.x - a.x);
+    x.save(); x.translate(mx, my); x.rotate(ang); x.beginPath();
+    if (x.roundRect) x.roundRect(-13, -4.5, 26, 9, 4.5); else x.rect(-13, -4.5, 26, 9);
+    x.fillStyle = HC; x.globalAlpha = E.drag === 'side' + k ? 1 : .85; x.fill(); x.restore();
+  }
   P.forEach((p, i) => {
     const on = E.drag === i;
     x.beginPath(); x.arc(p.x, p.y, on ? 15 : 12, 0, Math.PI*2);
     x.save(); x.globalAlpha = .3; x.fillStyle = HC; x.fill(); x.restore(); x.lineWidth = 2.5; x.strokeStyle = HC; x.stroke();
     x.beginPath(); x.arc(p.x, p.y, 2.5, 0, Math.PI*2); x.fillStyle = HC; x.fill();
   });
-  if (E.drag != null) {
+  if (typeof E.drag === 'number') {
     const p = P[E.drag], R = 48, zoom = 2.6;
     const lx = (p.x < 140 && p.y < 140) ? cw - R - 10 : R + 10, ly = R + 10;
     const half = R/(sc*zoom);
@@ -1657,24 +1799,60 @@ function drawCrop(){
     x.beginPath(); x.arc(lx, ly, R, 0, Math.PI*2); x.lineWidth = 3; x.strokeStyle = HC; x.stroke();
   }
 }
+// Coins aimantés : après un déplacement, le coin se cale sur le bord le plus net à proximité
+function snapField(){
+  if (E.snapF) return E.snapF;
+  const src = E.srcInfo.canvas, sc = 640/Math.max(src.width, src.height), w = Math.max(8, Math.round(src.width*sc)), h = Math.max(8, Math.round(src.height*sc));
+  const t = mk(w, h), x = t.getContext('2d', {willReadFrequently:true}); x.drawImage(src, 0, 0, w, h);
+  E.snapF = {F:kField(x.getImageData(0, 0, w, h).data, w, h), sc};
+  return E.snapF;
+}
+function snapCorners(ks){
+  try {
+    const {F, sc} = snapField(), q = E.corners.map(c => [c.x*sc, c.y*sc]);
+    const r = F.refine(q, [F.diag/300, F.diag/600, F.diag/1200], F.diag*.025, ks);
+    if (r.cur < 0) return;
+    for (const k of ks) E.corners[k] = {x:Math.min(E.srcInfo.w, Math.max(0, r.q[k][0]/sc)), y:Math.min(E.srcInfo.h, Math.max(0, r.q[k][1]/sc))};
+  } catch (e) {}
+}
 function wireCrop(){
-  const cv = $('cvCrop'); let off = {x:0, y:0};
+  const cv = $('cvCrop'); let off = {x:0, y:0}, start = null;
   cv.addEventListener('pointerdown', e => {
     if (!E || E.tab !== 'crop' || !E.view) return;
     const r = cv.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top, sc = E.view.sc;
-    let best = -1, bd = 46;
+    let best = null, bd = 46;
     E.corners.forEach((c, i) => { const d = Math.hypot(c.x*sc - px, c.y*sc - py); if (d < bd) { bd = d; best = i; } });
-    if (best < 0) return;
-    E.drag = best; off = {x:E.corners[best].x*sc - px, y:E.corners[best].y*sc - py};
+    if (best == null) {
+      bd = 34;
+      for (let k = 0; k < 4; k++) {
+        const a = E.corners[k], b = E.corners[(k+1)%4], d = Math.hypot((a.x + b.x)/2*sc - px, (a.y + b.y)/2*sc - py);
+        if (d < bd) { bd = d; best = 'side' + k; }
+      }
+    }
+    if (best == null) return;
+    E.drag = best;
+    if (typeof best === 'number') off = {x:E.corners[best].x*sc - px, y:E.corners[best].y*sc - py};
+    else start = {px, py, corners:E.corners.map(c => ({x:c.x, y:c.y}))};
     cv.setPointerCapture(e.pointerId); e.preventDefault(); drawCrop();
   });
   cv.addEventListener('pointermove', e => {
     if (!E || E.drag == null) return;
-    const r = cv.getBoundingClientRect(), sc = E.view.sc;
-    const x = Math.min(E.view.cw, Math.max(0, e.clientX - r.left + off.x)), y = Math.min(E.view.ch, Math.max(0, e.clientY - r.top + off.y));
-    E.corners[E.drag] = {x:x/sc, y:y/sc}; drawCrop(); updateInfo();
+    const r = cv.getBoundingClientRect(), sc = E.view.sc, cl = (v, m) => Math.min(m, Math.max(0, v));
+    if (typeof E.drag === 'number') {
+      const x = cl(e.clientX - r.left + off.x, E.view.cw), y = cl(e.clientY - r.top + off.y, E.view.ch);
+      E.corners[E.drag] = {x:x/sc, y:y/sc};
+    } else {
+      const k = +E.drag.slice(4), dx = (e.clientX - r.left - start.px)/sc, dy = (e.clientY - r.top - start.py)/sc;
+      for (const i of [k, (k+1)%4]) E.corners[i] = {x:cl(start.corners[i].x + dx, E.srcInfo.w), y:cl(start.corners[i].y + dy, E.srcInfo.h)};
+    }
+    drawCrop(); updateInfo();
   });
-  const end = () => { if (!E || E.drag == null) return; E.drag = null; drawCrop(); updateInfo(); };
+  const end = () => {
+    if (!E || E.drag == null) return;
+    const d = E.drag; E.drag = null;
+    snapCorners(typeof d === 'number' ? [d] : [+d.slice(4), (+d.slice(4) + 1)%4]);
+    drawCrop(); updateInfo();
+  };
   cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
 }
 
@@ -1879,6 +2057,136 @@ async function commitText(msg, textOnly){
 }
 function closeText(){ TX = null; if (cur) openDoc(cur.id); else goLib(); }
 
+/* ---------- Caméra en direct ---------- */
+let CAM = null;
+const DET_CV = mk(4, 4);
+function camFallback(doc){ addTarget = doc || null; $('inCam').click(); }
+async function startStream(){
+  const stream = await navigator.mediaDevices.getUserMedia({audio:false, video:{facingMode:{ideal:'environment'}, width:{ideal:3840}, height:{ideal:2160}}});
+  const v = $('camVideo'); v.srcObject = stream; await v.play().catch(() => {});
+  const track = stream.getVideoTracks()[0];
+  CAM.stream = stream; CAM.track = track;
+  CAM.imageCapture = ('ImageCapture' in window) ? new ImageCapture(track) : null;
+  let caps = {}; try { caps = track.getCapabilities ? track.getCapabilities() : {}; } catch (e) {}
+  $('camTorch').hidden = !caps.torch; CAM.torch = false; $('camTorch').setAttribute('aria-pressed', 'false');
+}
+function stopStream(){ if (CAM && CAM.stream) { CAM.stream.getTracks().forEach(t => t.stop()); CAM.stream = null; } }
+async function openCamera(doc){
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { camFallback(doc); return; }
+  CAM = {doc:doc || null, quad:null, shown:null, hist:[], since:0, auto:true, count:0, lastShot:0, shooting:false, queue:Promise.resolve(), timer:0, raf:0};
+  try { await startStream(); }
+  catch (e) {
+    CAM = null;
+    toast(e && e.name === 'NotAllowedError' ? 'Accès à la caméra refusé : j\'ouvre l\'appareil photo du téléphone.' : 'Caméra indisponible : j\'ouvre l\'appareil photo du téléphone.');
+    camFallback(doc); return;
+  }
+  $('camAuto').setAttribute('aria-pressed', 'true');
+  $('camCount').textContent = '0'; $('camThumb').hidden = true; $('camDone').hidden = true;
+  setCamStatus('Cadre la feuille');
+  show('vCam');
+  loadMl().catch(() => {});
+  try { if (navigator.wakeLock) CAM.lock = await navigator.wakeLock.request('screen'); } catch (e) {}
+  camTick(); camDraw();
+}
+function setCamStatus(t){ if ($('camStatus').textContent !== t) $('camStatus').textContent = t; }
+// détection en continu sur une image réduite
+async function camTick(){
+  if (!CAM) return;
+  const v = $('camVideo');
+  if (v.readyState >= 2 && v.videoWidth && !CAM.shooting) {
+    const vw = v.videoWidth, vh = v.videoHeight, sc = 320/Math.max(vw, vh), w = Math.round(vw*sc), h = Math.round(vh*sc);
+    if (DET_CV.width !== w || DET_CV.height !== h) { DET_CV.width = w; DET_CV.height = h; }
+    const x = DET_CV.getContext('2d', {willReadFrequently:true}); x.drawImage(v, 0, 0, w, h);
+    let r = null;
+    try {
+      const ml = await mlCorners(DET_CV, w, h, false);
+      const rgba = x.getImageData(0, 0, w, h).data;
+      if (ml) r = ml.score > .5 ? kDetect(rgba, w, h, ml, true) : null;
+      else { r = kDetect(rgba, w, h); if (r && r.full) r = null; }
+      if (r) r.conf = ml ? ml.score : .7;
+    } catch (e) { r = null; }
+    if (!CAM) return;
+    const now = performance.now();
+    if (r) {
+      const q = r.quad.map(p => [p[0]/w, p[1]/h]);
+      const area = Math.abs(kArea(q));
+      CAM.quad = area > .08 ? q : null;
+      if (CAM.quad) { CAM.hist.push(q); if (CAM.hist.length > 6) CAM.hist.shift(); }
+    } else { CAM.quad = null; CAM.hist = []; }
+    // stabilité : les coins ne bougent presque plus depuis ~6 mesures
+    let stable = false;
+    if (CAM.quad && CAM.hist.length >= 5) {
+      const last = CAM.hist[CAM.hist.length - 1];
+      const move = Math.max(...CAM.hist.map(h => Math.max(...h.map((p, k) => Math.hypot(p[0] - last[k][0], p[1] - last[k][1])))));
+      stable = move < .015 && r.conf > .8;
+    }
+    if (!CAM.quad) { CAM.since = 0; setCamStatus(mlSess ? 'Cadre la feuille' : 'Cadre la feuille…'); }
+    else if (!stable) { CAM.since = 0; setCamStatus('Ne bouge plus…'); }
+    else {
+      if (!CAM.since) CAM.since = now;
+      setCamStatus(CAM.auto ? 'Parfait, je prends la photo' : 'Feuille trouvée');
+      if (CAM.auto && now - CAM.since > 650 && now - CAM.lastShot > 2200) camCapture();
+    }
+    $('camShot').classList.toggle('armed', !!CAM.quad && stable);
+  }
+  if (CAM) CAM.timer = setTimeout(camTick, 70);
+}
+// contour dessiné avec un léger amorti, au-dessus de la vidéo (image entière visible)
+function camDraw(){
+  if (!CAM) return;
+  const cv = $('camOverlay'), v = $('camVideo'), dpr = Math.min(2, window.devicePixelRatio || 1);
+  const W = cv.clientWidth, H = cv.clientHeight;
+  if (cv.width !== Math.round(W*dpr) || cv.height !== Math.round(H*dpr)) { cv.width = Math.round(W*dpr); cv.height = Math.round(H*dpr); }
+  const x = cv.getContext('2d'); x.setTransform(dpr, 0, 0, dpr, 0, 0); x.clearRect(0, 0, W, H);
+  if (CAM.quad) CAM.shown = CAM.shown ? CAM.shown.map((p, k) => [p[0] + (CAM.quad[k][0] - p[0])*.35, p[1] + (CAM.quad[k][1] - p[1])*.35]) : CAM.quad.map(p => p.slice());
+  else CAM.shown = null;
+  if (CAM.shown && v.videoWidth) {
+    const s = Math.min(W/v.videoWidth, H/v.videoHeight), ox = (W - v.videoWidth*s)/2, oy = (H - v.videoHeight*s)/2;
+    const P = CAM.shown.map(p => [ox + p[0]*v.videoWidth*s, oy + p[1]*v.videoHeight*s]);
+    const ok = $('camShot').classList.contains('armed');
+    x.beginPath(); P.forEach((p, i) => i ? x.lineTo(p[0], p[1]) : x.moveTo(p[0], p[1])); x.closePath();
+    x.fillStyle = ok ? 'rgba(242,182,50,.28)' : 'rgba(255,255,255,.14)'; x.fill();
+    x.lineWidth = 3; x.strokeStyle = ok ? '#F2B632' : '#ffffff'; x.lineJoin = 'round'; x.stroke();
+    for (const p of P) { x.beginPath(); x.arc(p[0], p[1], 6, 0, Math.PI*2); x.fillStyle = ok ? '#F2B632' : '#ffffff'; x.fill(); }
+  }
+  CAM.raf = requestAnimationFrame(camDraw);
+}
+async function camCapture(){
+  if (!CAM || CAM.shooting) return;
+  CAM.shooting = true; CAM.lastShot = performance.now(); CAM.since = 0; CAM.hist = [];
+  const f = $('camFlash'); f.hidden = false; setTimeout(() => { f.hidden = true; }, 380);
+  try { if (navigator.vibrate) navigator.vibrate(30); } catch (e) {}
+  let blob = null;
+  const v = $('camVideo');
+  if (CAM.imageCapture) { try { blob = await CAM.imageCapture.takePhoto(); } catch (e) { blob = null; } }
+  if (!blob) { const c = mk(v.videoWidth, v.videoHeight); c.getContext('2d').drawImage(v, 0, 0); blob = await toBlob(c, 'image/jpeg', .93); }
+  CAM.count++;
+  $('camCount').textContent = String(CAM.count); $('camDone').hidden = false;
+  setCamStatus(`Page ${CAM.count} prise`);
+  const doc = CAM.doc || (CAM.doc = draftDoc());
+  CAM.queue = CAM.queue.then(() => camProcess(doc, blob)).catch(() => toast('Une page n\'a pas pu être traitée.'));
+  CAM.shooting = false;
+}
+async function camProcess(doc, blob){
+  const page = await ingest(blob);
+  await finalize(page);
+  doc.pages.push(page); doc.updated = Date.now();
+  if (!docs.includes(doc)) docs.unshift(doc);
+  await persist(doc);
+  if (CAM && CAM.doc === doc) { $('camThumbImg').src = urlOf(page.thumb); $('camThumb').hidden = false; }
+}
+async function closeCamera(){
+  if (!CAM) return;
+  const c = CAM; clearTimeout(c.timer); cancelAnimationFrame(c.raf); stopStream();
+  try { if (c.lock) c.lock.release(); } catch (e) {}
+  CAM = null;
+  if (c.count) {
+    busy('Finalisation des pages…'); await c.queue; busy(null);
+    if (c.doc && c.doc.pages.length) { openDoc(c.doc.id); autoRead(c.doc); return; }
+  }
+  if (cur && docs.includes(cur)) openDoc(cur.id); else goLib();
+}
+
 /* exemple */
 async function makeSample(){
   const W = 1800, H = 1400, c = mk(W, H), x = c.getContext('2d');
@@ -1910,9 +2218,9 @@ async function trySample(){ addTarget = null; busy('Préparation de l\'exemple�
 
 /* ---------- Branchements ---------- */
 function wire(){
-  $('btnScan').onclick = () => { addTarget = null; $('inCam').click(); };
+  $('btnScan').onclick = () => { addTarget = null; openCamera(null); };
   $('btnImport').onclick = () => { addTarget = null; $('inPick').click(); };
-  $('docAddCam').onclick = () => { addTarget = cur; $('inCam').click(); };
+  $('docAddCam').onclick = () => { addTarget = cur; openCamera(cur); };
   $('docAddPick').onclick = () => { addTarget = cur; $('inPick').click(); };
   for (const id of ['inCam', 'inPick']) $(id).addEventListener('change', e => { const f = [...e.target.files]; e.target.value = ''; onFiles(f); });
   $('docBack').onclick = goLib; $('docDelete').onclick = deleteDoc; $('docPdf').onclick = exportPdf;
@@ -1920,8 +2228,9 @@ function wire(){
   $('docTitle').addEventListener('keydown', e => { if (e.key === 'Enter') e.target.blur(); });
   $('edDone').onclick = editorDone; $('edCancel').onclick = editorCancel;
   for (const b of document.querySelectorAll('.tab')) b.addEventListener('click', () => E && setTab(b.dataset.tab));
-  $('btnDetect').onclick = () => {
-    const c = detect(E.srcInfo.canvas);
+  $('btnDetect').onclick = async () => {
+    busy('Détection…'); await tick();
+    const c = await detect(E.srcInfo.canvas); busy(null);
     if (c) E.corners = c; else { E.corners = defaultCorners(E.srcInfo.w, E.srcInfo.h); toast('Contour introuvable, ajuste à la main.'); }
     drawCrop(); updateInfo();
   };
@@ -1933,6 +2242,18 @@ function wire(){
   $('btnResetAdj').onclick = () => { E.bright = 0; E.contrast = 0; $('slBright').value = 0; $('slContrast').value = 0; syncSliders(); refreshPreview(); };
   window.addEventListener('resize', () => { if (E && E.tab === 'crop' && !$('vEdit').hidden) { layoutCrop(); drawCrop(); } if (TX && !$('vText').hidden) layoutText(); });
   $('docShare').onclick = shareDoc;
+  $('camShot').onclick = () => camCapture();
+  $('camClose').onclick = closeCamera; $('camDone').onclick = closeCamera; $('camThumb').onclick = closeCamera;
+  $('camAuto').onclick = () => { if (!CAM) return; CAM.auto = !CAM.auto; $('camAuto').setAttribute('aria-pressed', String(CAM.auto)); CAM.since = 0; };
+  $('camTorch').onclick = async () => {
+    if (!CAM || !CAM.track) return;
+    try { CAM.torch = !CAM.torch; await CAM.track.applyConstraints({advanced:[{torch:CAM.torch}]}); $('camTorch').setAttribute('aria-pressed', String(CAM.torch)); } catch (e) { toast('Lampe indisponible.'); }
+  };
+  document.addEventListener('visibilitychange', async () => {
+    if (!CAM) return;
+    if (document.hidden) stopStream();
+    else if (!CAM.stream) { try { await startStream(); } catch (e) { closeCamera(); } }
+  });
   $('btnInstall').onclick = async () => {
     if (!installEvt) return;
     installEvt.prompt();
@@ -1972,6 +2293,7 @@ async function init(){
   renderLib(); show('vLib');
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
 }
+if (location.hash === '#test') window.__kami = {get E(){ return E; }};
 let installEvt = null;
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; $('btnInstall').hidden = false; });
 window.addEventListener('appinstalled', () => { $('btnInstall').hidden = true; toast('Kami est installée.'); });
