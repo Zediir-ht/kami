@@ -327,7 +327,7 @@ svg.i{width:22px; height:22px; stroke:currentColor; fill:none; stroke-width:1.9;
     </div>
     <div class="tabbody" id="paneFilter" hidden>
       <button class="chip" data-filter="auto" aria-pressed="true">Auto</button>
-      <button class="chip" data-filter="doc" aria-pressed="false">Document</button>
+      <button class="chip" data-filter="doc" aria-pressed="false">Couleur</button>
       <button class="chip" data-filter="original" aria-pressed="false">Original</button>
       <button class="chip" data-filter="gray" aria-pressed="false">Gris</button>
       <button class="chip" data-filter="bw" aria-pressed="false">Noir et blanc</button>
@@ -511,77 +511,346 @@ function defaultCorners(w, hh){
   const m = .05;
   return [{x:w*m,y:hh*m},{x:w*(1-m),y:hh*m},{x:w*(1-m),y:hh*(1-m)},{x:w*m,y:hh*(1-m)}];
 }
-function blur(a, w, hh, r){
+function detect(src){
+  try {
+    const sc = 480/Math.max(src.width, src.height), w = Math.max(8, Math.round(src.width*sc)), h = Math.max(8, Math.round(src.height*sc));
+    const t = mk(w, h), x = t.getContext('2d', {willReadFrequently:true});
+    x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high'; x.drawImage(src, 0, 0, w, h);
+    const r = kDetect(x.getImageData(0, 0, w, h).data, w, h);
+    if (!r) return null;
+    const W = src.width, H = src.height;
+    if (r.full) return [{x:0, y:0}, {x:W, y:0}, {x:W, y:H}, {x:0, y:H}];
+    return r.quad.map(p => ({x:Math.min(W, Math.max(0, (p[0] + .5)/sc)), y:Math.min(H, Math.max(0, (p[1] + .5)/sc))}));
+  } catch (e) { return null; }
+}
+
+/* ---------- Moteur : contour de la feuille et nettoyage ---------- */
+// Kami — cœur de traitement, fonctions pures (aucun DOM), testables hors navigateur.
+// ---------------------------------------------------------------------------
+// Détection du contour de la feuille
+// ---------------------------------------------------------------------------
+function kBoxBlur(a, w, h, r){
   const t = new Float32Array(a.length), o = new Float32Array(a.length), n = 2*r + 1;
-  for (let y = 0; y < hh; y++) {
+  for (let y = 0; y < h; y++) {
     const row = y*w; let s = 0;
     for (let x = -r; x <= r; x++) s += a[row + Math.min(w-1, Math.max(0, x))];
     for (let x = 0; x < w; x++) { t[row+x] = s/n; s += a[row + Math.min(w-1, x+r+1)] - a[row + Math.max(0, x-r)]; }
   }
   for (let x = 0; x < w; x++) {
     let s = 0;
-    for (let y = -r; y <= r; y++) s += t[Math.min(hh-1, Math.max(0, y))*w + x];
-    for (let y = 0; y < hh; y++) { o[y*w+x] = s/n; s += t[Math.min(hh-1, y+r+1)*w + x] - t[Math.max(0, y-r)*w + x]; }
+    for (let y = -r; y <= r; y++) s += t[Math.min(h-1, Math.max(0, y))*w + x];
+    for (let y = 0; y < h; y++) { o[y*w+x] = s/n; s += t[Math.min(h-1, y+r+1)*w + x] - t[Math.max(0, y-r)*w + x]; }
   }
   return o;
 }
-function detect(src){
-  try {
-    const sc = 200/Math.max(src.width, src.height);
-    const w = Math.max(8, Math.round(src.width*sc)), hh = Math.max(8, Math.round(src.height*sc));
-    const t = mk(w, hh), tc = t.getContext('2d', {willReadFrequently:true});
-    tc.drawImage(src, 0, 0, w, hh);
-    const px = tc.getImageData(0, 0, w, hh).data, N = w*hh;
-    let g = new Float32Array(N);
-    for (let i = 0; i < N; i++) g[i] = .299*px[i*4] + .587*px[i*4+1] + .114*px[i*4+2];
-    g = blur(blur(g, w, hh, 2), w, hh, 2);
-    const hist = new Float64Array(256);
-    for (let i = 0; i < N; i++) hist[Math.min(255, g[i]|0)]++;
-    let sumAll = 0; for (let i = 0; i < 256; i++) sumAll += i*hist[i];
-    let wB = 0, sumB = 0, best = -1, thr = 128;
-    for (let i = 0; i < 256; i++) {
-      wB += hist[i]; if (!wB) continue;
-      const wF = N - wB; if (!wF) break;
-      sumB += i*hist[i];
-      const mB = sumB/wB, mF = (sumAll - sumB)/wF, v = wB*wF*(mB-mF)*(mB-mF);
-      if (v > best) { best = v; thr = i; }
+function kOtsu(a){
+  const hist = new Float64Array(256); let N = 0;
+  for (let i = 0; i < a.length; i++) { const v = a[i] < 0 ? 0 : a[i] > 255 ? 255 : a[i]|0; hist[v]++; N++; }
+  let sum = 0; for (let i = 0; i < 256; i++) sum += i*hist[i];
+  let wB = 0, sB = 0, best = -1, thr = 128;
+  for (let i = 0; i < 256; i++) {
+    wB += hist[i]; if (!wB) continue; const wF = N - wB; if (!wF) break;
+    sB += i*hist[i]; const mB = sB/wB, mF = (sum - sB)/wF, v = wB*wF*(mB-mF)*(mB-mF);
+    if (v > best) { best = v; thr = i; }
+  }
+  return thr;
+}
+function kHull(pts){
+  pts.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cr = (o, a, b) => (a[0]-o[0])*(b[1]-o[1]) - (a[1]-o[1])*(b[0]-o[0]);
+  const lo = [], up = [];
+  for (const p of pts) { while (lo.length >= 2 && cr(lo[lo.length-2], lo[lo.length-1], p) <= 0) lo.pop(); lo.push(p); }
+  for (let i = pts.length - 1; i >= 0; i--) { const p = pts[i]; while (up.length >= 2 && cr(up[up.length-2], up[up.length-1], p) <= 0) up.pop(); up.push(p); }
+  up.pop(); lo.pop(); return lo.concat(up);
+}
+function kArea(q){ let s = 0; for (let i = 0; i < q.length; i++) { const a = q[i], b = q[(i+1)%q.length]; s += a[0]*b[1] - b[0]*a[1]; } return s/2; }
+// ordre : haut-gauche, haut-droit, bas-droit, bas-gauche
+function kOrder(q){
+  const c = [q.reduce((s, p) => s + p[0], 0)/4, q.reduce((s, p) => s + p[1], 0)/4];
+  const s = q.slice().sort((a, b) => Math.atan2(a[1]-c[1], a[0]-c[0]) - Math.atan2(b[1]-c[1], b[0]-c[0]));
+  let k = 0, best = Infinity; for (let i = 0; i < 4; i++) { const v = s[i][0] + s[i][1]; if (v < best) { best = v; k = i; } }
+  return [0, 1, 2, 3].map(i => s[(k + i) % 4]);
+}
+function kConvexOk(q){
+  let sign = 0;
+  for (let i = 0; i < 4; i++) {
+    const a = q[i], b = q[(i+1)%4], c = q[(i+2)%4];
+    const cr = (b[0]-a[0])*(c[1]-b[1]) - (b[1]-a[1])*(c[0]-b[0]);
+    if (Math.abs(cr) < 1e-6) return false;
+    const sg = Math.sign(cr); if (!sign) sign = sg; else if (sg !== sign) return false;
+    const v1 = [a[0]-b[0], a[1]-b[1]], v2 = [c[0]-b[0], c[1]-b[1]];
+    const ang = Math.acos(Math.max(-1, Math.min(1, (v1[0]*v2[0] + v1[1]*v2[1])/(Math.hypot(...v1)*Math.hypot(...v2) || 1))))*180/Math.PI;
+    if (ang < 40 || ang > 140) return false;
+  }
+  return true;
+}
+function kQuadFromHull(h){
+  if (h.length < 4) return null;
+  const ext = [h.reduce((m, p) => p[0]+p[1] < m[0]+m[1] ? p : m), h.reduce((m, p) => p[0]-p[1] > m[0]-m[1] ? p : m),
+               h.reduce((m, p) => p[0]+p[1] > m[0]+m[1] ? p : m), h.reduce((m, p) => p[0]-p[1] < m[0]-m[1] ? p : m)];
+  let q = ext.slice(), best = Math.abs(kArea(q));
+  for (let it = 0; it < 3; it++) {
+    let moved = false;
+    for (let i = 0; i < 4; i++) for (const p of h) {
+      const t = q.slice(); t[i] = p; const a = Math.abs(kArea(kOrder(t)));
+      if (a > best + 1e-6) { best = a; q = t; moved = true; }
     }
-    let bb = 0, bn = 0;
-    const isB = (x, y) => g[y*w + x] > thr ? 1 : 0;
-    for (let x = 0; x < w; x++) { bn += 2; bb += isB(x, 0) + isB(x, hh-1); }
-    for (let y = 1; y < hh-1; y++) { bn += 2; bb += isB(0, y) + isB(w-1, y); }
-    const inv = bb/bn > .5;
-    const mask = new Uint8Array(N);
-    for (let i = 0; i < N; i++) mask[i] = ((g[i] > thr) !== inv) ? 1 : 0;
-    const seen = new Uint8Array(N), stack = new Int32Array(N);
-    let bestN = 0, bestE = null;
-    for (let s = 0; s < N; s++) {
-      if (!mask[s] || seen[s]) continue;
-      let sp = 0; stack[sp++] = s; seen[s] = 1; let n = 0;
-      const e = {tl:[1e9,0,0], br:[-1e9,0,0], tr:[-1e9,0,0], bl:[1e9,0,0]};
-      while (sp) {
-        const p = stack[--sp], x = p % w, y = (p / w) | 0; n++;
-        const a = x + y, b = x - y;
-        if (a < e.tl[0]) e.tl = [a,x,y];
-        if (a > e.br[0]) e.br = [a,x,y];
-        if (b > e.tr[0]) e.tr = [b,x,y];
-        if (b < e.bl[0]) e.bl = [b,x,y];
-        if (x > 0 && mask[p-1] && !seen[p-1]) { seen[p-1] = 1; stack[sp++] = p-1; }
-        if (x < w-1 && mask[p+1] && !seen[p+1]) { seen[p+1] = 1; stack[sp++] = p+1; }
-        if (y > 0 && mask[p-w] && !seen[p-w]) { seen[p-w] = 1; stack[sp++] = p-w; }
-        if (y < hh-1 && mask[p+w] && !seen[p+w]) { seen[p+w] = 1; stack[sp++] = p+w; }
+    if (!moved) break;
+  }
+  return kOrder(q);
+}
+function kDetect(rgba, w, h){
+  const N = w*h, L0 = new Float32Array(N), S0 = new Float32Array(N);
+  for (let i = 0, j = 0; j < N; i += 4, j++) {
+    const r = rgba[i], g = rgba[i+1], b = rgba[i+2];
+    L0[j] = .299*r + .587*g + .114*b; S0[j] = Math.max(r, g, b) - Math.min(r, g, b);
+  }
+  const L = kBoxBlur(kBoxBlur(L0, w, h, 1), w, h, 1), S = kBoxBlur(kBoxBlur(S0, w, h, 1), w, h, 1);
+  const diag = Math.hypot(w, h), area = w*h;
+  const val = (A, x, y) => { x = x < 0 ? 0 : x > w - 1 ? w - 1 : x; y = y < 0 ? 0 : y > h - 1 ? h - 1 : y; const x0 = x|0, y0 = y|0, x1 = Math.min(w-1, x0+1), y1 = Math.min(h-1, y0+1), fx = x - x0, fy = y - y0; return A[y0*w+x0]*(1-fx)*(1-fy) + A[y0*w+x1]*fx*(1-fy) + A[y1*w+x0]*(1-fx)*fy + A[y1*w+x1]*fx*fy; };
+  // Note d'un contour : contraste entre l'intérieur et l'extérieur, le long des 4 côtés
+  function score(q, d, n){
+    if (!kConvexOk(q)) return -1;
+    const A = Math.abs(kArea(q)); if (A < area*.08) return -1;
+    const cx = (q[0][0]+q[1][0]+q[2][0]+q[3][0])/4, cy = (q[0][1]+q[1][1]+q[2][1]+q[3][1])/4;
+    const sides = [];
+    for (let k = 0; k < 4; k++) {
+      const a = q[k], b = q[(k+1)%4], len = Math.hypot(b[0]-a[0], b[1]-a[1]) || 1;
+      let nx = (b[1]-a[1])/len, ny = -(b[0]-a[0])/len;
+      const mx = (a[0]+b[0])/2, my = (a[1]+b[1])/2;
+      if ((mx - cx)*nx + (my - cy)*ny < 0) { nx = -nx; ny = -ny; }
+      const vals = []; let border = 0;
+      for (let i = 0; i < n; i++) {
+        const t = .06 + .88*i/(n-1), px = a[0] + (b[0]-a[0])*t, py = a[1] + (b[1]-a[1])*t;
+        const ox = px + nx*d, oy = py + ny*d, ix = px - nx*d, iy = py - ny*d;
+        if (ox < 0 || oy < 0 || ox > w-1 || oy > h-1) { border++; continue; }
+        const dl = val(L, ix, iy) - val(L, ox, oy), ds = Math.abs(val(S, ix, iy) - val(S, ox, oy));
+        vals.push(Math.min(80, Math.abs(dl) + .7*ds));
       }
-      if (n > bestN) { bestN = n; bestE = e; }
+      if (border > n*.6) { sides.push(9); continue; }
+      vals.sort((x, y) => x - y);
+      sides.push(vals.length ? vals[Math.floor(vals.length*.35)] : 0);
     }
-    if (!bestE || bestN < N*.12) return null;
-    const P = k => ({x: Math.min(src.width, Math.max(0, (bestE[k][1] + .5)/sc)), y: Math.min(src.height, Math.max(0, (bestE[k][2] + .5)/sc))});
-    const c = [P('tl'), P('tr'), P('br'), P('bl')];
-    let area = 0;
-    for (let i = 0; i < 4; i++) { const a = c[i], b = c[(i+1)%4]; area += a.x*b.y - b.x*a.y; }
-    area = Math.abs(area)/2/(src.width*src.height);
-    if (area < .12 || area > .98) return null;
-    return c;
-  } catch (e) { return null; }
+    const mean = sides.reduce((s, v) => s + v, 0)/4, min = Math.min(...sides);
+    return (.55*mean + .45*min)*(.8 + .2*Math.sqrt(A/area));
+  }
+  const cands = [];
+  // a) segmentation : la feuille est la grande zone claire et peu colorée
+  const feats = [L, Float32Array.from(L, (v, i) => v - 1.2*S[i]), Float32Array.from(S, v => 255 - 2*v)];
+  for (const F of feats) {
+    const o = kOtsu(F);
+    for (const thr of [o - 20, o, o + 20]) for (const inv of [false, true]) {
+      const lab = new Int32Array(N).fill(-1), stack = new Int32Array(N), sizes = [];
+      let id = 0;
+      for (let s0 = 0; s0 < N; s0++) {
+        if (lab[s0] !== -1 || ((F[s0] > thr) === inv)) continue;
+        let sp = 0; stack[sp++] = s0; lab[s0] = id; let n = 0;
+        while (sp) {
+          const p = stack[--sp], x = p % w; n++;
+          const nb = [x > 0 ? p-1 : -1, x < w-1 ? p+1 : -1, p >= w ? p-w : -1, p < N-w ? p+w : -1];
+          for (const q of nb) if (q >= 0 && lab[q] === -1 && ((F[q] > thr) !== inv)) { lab[q] = id; stack[sp++] = q; }
+        }
+        sizes.push(n); id++;
+      }
+      const order = sizes.map((n, i) => [n, i]).filter(([n]) => n > N*.08 && n < N*.97).sort((a, b) => b[0] - a[0]).slice(0, 2);
+      for (const [, cid] of order) {
+        const pts = [];
+        for (let y = 0; y < h; y++) {
+          let lo = -1, hi = -1;
+          for (let x = 0; x < w; x++) if (lab[y*w+x] === cid) { if (lo < 0) lo = x; hi = x; }
+          if (lo >= 0) { pts.push([lo, y]); pts.push([hi, y]); }
+        }
+        const q = kQuadFromHull(kHull(pts)); if (q) cands.push(q);
+      }
+    }
+  }
+  // b) droites dominantes (Hough) sur le gradient
+  const G = new Float32Array(N), TH = new Float32Array(N);
+  for (let y = 1; y < h-1; y++) for (let x = 1; x < w-1; x++) {
+    const i = y*w + x;
+    const gx = (L[i-w+1] + 2*L[i+1] + L[i+w+1]) - (L[i-w-1] + 2*L[i-1] + L[i+w-1]) + .7*((S[i-w+1] + 2*S[i+1] + S[i+w+1]) - (S[i-w-1] + 2*S[i-1] + S[i+w-1]));
+    const gy = (L[i+w-1] + 2*L[i+w] + L[i+w+1]) - (L[i-w-1] + 2*L[i-w] + L[i-w+1]) + .7*((S[i+w-1] + 2*S[i+w] + S[i+w+1]) - (S[i-w-1] + 2*S[i-w] + S[i-w+1]));
+    G[i] = Math.hypot(gx, gy); TH[i] = Math.atan2(gy, gx);
+  }
+  const gs = Array.from(G).filter(v => v > 0).sort((a, b) => a - b), gthr = gs[Math.floor(gs.length*.88)] || 1;
+  const NT = 180, R = Math.ceil(diag), acc = new Float32Array(NT*(2*R+1));
+  const cosT = new Float32Array(NT), sinT = new Float32Array(NT);
+  for (let t = 0; t < NT; t++) { cosT[t] = Math.cos(t*Math.PI/NT); sinT[t] = Math.sin(t*Math.PI/NT); }
+  for (let y = 1; y < h-1; y++) for (let x = 1; x < w-1; x++) {
+    const i = y*w + x, g = G[i]; if (g < gthr) continue;
+    let th = TH[i]; if (th < 0) th += Math.PI; if (th >= Math.PI) th -= Math.PI;
+    const tc = Math.round(th/Math.PI*NT);
+    for (let dt = -4; dt <= 4; dt++) {
+      const t = (tc + dt + NT) % NT, r = Math.round(x*cosT[t] + y*sinT[t]) + R;
+      acc[t*(2*R+1) + r] += Math.min(g, 4*gthr);
+    }
+  }
+  const lines = [];
+  const accC = acc.slice();
+  for (let k = 0; k < 14; k++) {
+    let bi = 0, bv = 0; for (let i = 0; i < accC.length; i++) if (accC[i] > bv) { bv = accC[i]; bi = i; }
+    if (!bv) break;
+    const t = Math.floor(bi/(2*R+1)), r = bi % (2*R+1) - R;
+    lines.push([t, r]);
+    for (let dt = -6; dt <= 6; dt++) for (let dr = -Math.round(diag*.03); dr <= Math.round(diag*.03); dr++) {
+      let tt = t + dt, rr = r + dr; if (tt < 0) { tt += NT; rr = -rr; } else if (tt >= NT) { tt -= NT; rr = -rr; }
+      const j = tt*(2*R+1) + rr + R; if (j >= 0 && j < accC.length) accC[j] = 0;
+    }
+  }
+  const inter = (l1, l2) => {
+    const [t1, r1] = l1, [t2, r2] = l2, a1 = cosT[t1], b1 = sinT[t1], a2 = cosT[t2], b2 = sinT[t2], det = a1*b2 - a2*b1;
+    if (Math.abs(det) < 1e-6) return null;
+    return [(r1*b2 - r2*b1)/det, (a1*r2 - a2*r1)/det];
+  };
+  const angDiff = (a, b) => { const d = Math.abs(a - b) % NT; return Math.min(d, NT - d); };
+  const pairs = [];
+  for (let i = 0; i < lines.length; i++) for (let j = i+1; j < lines.length; j++) if (angDiff(lines[i][0], lines[j][0]) < 30) pairs.push([lines[i], lines[j]]);
+  for (let i = 0; i < pairs.length; i++) for (let j = i+1; j < pairs.length; j++) {
+    const [p1, p2] = pairs[i], [p3, p4] = pairs[j];
+    if (angDiff(p1[0], p3[0]) < 45) continue;
+    const pts = [inter(p1, p3), inter(p1, p4), inter(p2, p4), inter(p2, p3)];
+    if (pts.some(p => !p || p[0] < -w*.08 || p[1] < -h*.08 || p[0] > w*1.08 || p[1] > h*1.08)) continue;
+    cands.push(kOrder(pts.map(p => [Math.min(w-1, Math.max(0, p[0])), Math.min(h-1, Math.max(0, p[1]))])));
+  }
+  // c) cadre complet en dernier recours
+  cands.push([[0, 0], [w-1, 0], [w-1, h-1], [0, h-1]]);
+  const d0 = Math.max(2, diag/220);
+  let best = null, bs = -1;
+  for (const q of cands) { const s = score(q, d0, 24); if (s > bs) { bs = s; best = q; } }
+  if (!best) return null;
+  // affinage : on déplace chaque coin tant que le contraste augmente
+  let q = best.map(p => p.slice()), cur = score(q, d0*.8, 48);
+  for (const step of [diag/120, diag/240, diag/480, diag/960]) {
+    for (let it = 0; it < 12; it++) {
+      let moved = false;
+      for (let k = 0; k < 4; k++) for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]]) {
+        const t = q.map(p => p.slice()); t[k][0] = Math.min(w-1, Math.max(0, t[k][0] + dx*step)); t[k][1] = Math.min(h-1, Math.max(0, t[k][1] + dy*step));
+        const s = score(t, d0*.8, 48); if (s > cur) { cur = s; q = t; moved = true; }
+      }
+      if (!moved) break;
+    }
+  }
+  return {quad:q, score:cur, full: best === cands[cands.length-1]};
+}
+
+// ---------------------------------------------------------------------------
+// Nettoyage : ombres, couleur du papier, contraste
+// ---------------------------------------------------------------------------
+function kDown(src, W, H, f){ // moyenne par blocs, un canal float
+  const w = Math.ceil(W/f), h = Math.ceil(H/f), o = new Float32Array(w*h), c = new Float32Array(w*h);
+  for (let y = 0; y < H; y++) { const yy = (y/f)|0; for (let x = 0; x < W; x++) { const j = yy*w + ((x/f)|0); o[j] += src[y*W+x]; c[j]++; } }
+  for (let j = 0; j < o.length; j++) o[j] /= c[j];
+  return {a:o, w, h};
+}
+function kMax(a, w, h, r){
+  const t = new Float32Array(a.length), o = new Float32Array(a.length);
+  for (let y = 0; y < h; y++) { const row = y*w; for (let x = 0; x < w; x++) { let m = 0; const x0 = x-r < 0 ? 0 : x-r, x1 = x+r >= w ? w-1 : x+r; for (let i = x0; i <= x1; i++) if (a[row+i] > m) m = a[row+i]; t[row+x] = m; } }
+  for (let x = 0; x < w; x++) for (let y = 0; y < h; y++) { let m = 0; const y0 = y-r < 0 ? 0 : y-r, y1 = y+r >= h ? h-1 : y+r; for (let j = y0; j <= y1; j++) if (t[j*w+x] > m) m = t[j*w+x]; o[y*w+x] = m; }
+  return o;
+}
+// médiane glissante (histogramme, algorithme de Huang) : lisse en gardant les bords nets des ombres
+function kMedian(a, w, h, r){
+  const o = new Float32Array(a.length), q = new Uint8Array(a.length);
+  for (let i = 0; i < a.length; i++) q[i] = a[i] < 0 ? 0 : a[i] > 255 ? 255 : a[i]|0;
+  const Hh = new Int32Array(256), n = (2*r+1)*(2*r+1), target = n >> 1;
+  const col = (x, y, s, st) => { const xx = x < 0 ? 0 : x >= w ? w-1 : x; for (let dy = -r; dy <= r; dy++) { const yy = y+dy < 0 ? 0 : y+dy >= h ? h-1 : y+dy; const v = q[yy*w+xx]; Hh[v] += s; if (v < st.m) st.below += s; } };
+  for (let y = 0; y < h; y++) {
+    Hh.fill(0); const st = {m:0, below:0};
+    for (let x = -r; x <= r; x++) col(x, y, 1, st);
+    for (let x = 0; x < w; x++) {
+      while (st.below > target) { st.m--; st.below -= Hh[st.m]; }
+      while (st.below + Hh[st.m] <= target) { st.below += Hh[st.m]; st.m++; }
+      o[y*w+x] = st.m;
+      col(x - r, y, -1, st); col(x + r + 1, y, 1, st);
+    }
+  }
+  return o;
+}
+function kUp(a, w, h, W, H, f){ // bilinéaire
+  const o = new Float32Array(W*H);
+  for (let y = 0; y < H; y++) {
+    let fy = (y + .5)/f - .5; if (fy < 0) fy = 0; if (fy > h-1) fy = h-1; const y0 = fy|0, y1 = Math.min(h-1, y0+1), ty = fy - y0;
+    for (let x = 0; x < W; x++) {
+      let fx = (x + .5)/f - .5; if (fx < 0) fx = 0; if (fx > w-1) fx = w-1; const x0 = fx|0, x1 = Math.min(w-1, x0+1), tx = fx - x0;
+      o[y*W+x] = (a[y0*w+x0]*(1-tx) + a[y0*w+x1]*tx)*(1-ty) + (a[y1*w+x0]*(1-tx) + a[y1*w+x1]*tx)*ty;
+    }
+  }
+  return o;
+}
+const kPct = (arr, p) => { const s = Float32Array.from(arr).sort(); return s[Math.min(s.length-1, Math.floor(s.length*p))]; };
+// Préparation (une fois par cadrage) : fond du papier par canal + balance des blancs + niveaux
+function kPrep(rgba, W, H){
+  const N = W*H, f = Math.max(2, Math.round(Math.max(W, H)/550));
+  const bg = new Uint8ClampedArray(N*3);
+  for (let k = 0; k < 3; k++) {
+    const a = new Float32Array(N); for (let i = 0, j = k; i < N; i++, j += 4) a[i] = rgba[j];
+    const d = kDown(a, W, H, f), m = Math.min(d.w, d.h);
+    const rd = Math.max(2, Math.round(m/110)), rm = Math.max(4, Math.round(m/32));
+    let b = kMax(d.a, d.w, d.h, rd); b = kMedian(b, d.w, d.h, rm); b = kBoxBlur(b, d.w, d.h, 2);
+    const up = kUp(b, d.w, d.h, W, H, f);
+    for (let i = 0, j = k; i < N; i++, j += 3) bg[j] = up[i] < 8 ? 8 : up[i];
+  }
+  const step = Math.max(1, Math.floor(N/60000)), samp = [];
+  for (let i = 0; i < N; i += step) samp.push(i);
+  const calib = doc => {
+    const nv = i => { const j = i*4, q = i*3;
+      if (doc) { const bl = .299*bg[q] + .587*bg[q+1] + .114*bg[q+2]; return [rgba[j]/bl, rgba[j+1]/bl, rgba[j+2]/bl]; }
+      return [rgba[j]/bg[q], rgba[j+1]/bg[q+1], rgba[j+2]/bg[q+2]]; };
+    const vals = samp.map(nv), lum = vals.map(v => .299*v[0] + .587*v[1] + .114*v[2]);
+    const sorted = lum.slice().sort((a, b) => a - b), paper = sorted[Math.floor(sorted.length*.6)];
+    const wb = [0, 0, 0]; let c = 0;
+    vals.forEach((v, i) => { if (lum[i] > paper*.92) { wb[0] += v[0]; wb[1] += v[1]; wb[2] += v[2]; c++; } });
+    for (let k = 0; k < 3; k++) wb[k] = 1/Math.max(.3, c ? wb[k]/c : 1);
+    const l2 = vals.map(v => .299*v[0]*wb[0] + .587*v[1]*wb[1] + .114*v[2]*wb[2]).sort((a, b) => a - b);
+    const white = Math.min(1, l2[Math.floor(l2.length*.5)]*.91);
+    let black = l2[Math.floor(l2.length*.006)];
+    black = Math.min(black + (white - black)*.12, white - .3);
+    return {wb, white, black};
+  };
+  return {W, H, bg, auto:calib(false), doc:calib(true)};
+}
+// Rendu (rapide, à chaque changement de filtre ou de réglage) — mode : 'auto' | 'doc' | 'gray' | 'bw'
+function kRender(rgba, P, mode, bright, contrast){
+  const {W, H, bg} = P, N = W*H, out = new Uint8ClampedArray(N*4), doc = mode === 'doc', C = doc ? P.doc : P.auto;
+  const {wb, white, black} = C, span = 1/(white - black), k1 = 1 + (contrast || 0), br = bright || 0;
+  const gam = mode === 'auto' ? 1.45 : mode === 'gray' ? 1.35 : 1.15, sat = mode === 'auto' ? 1.2 : 1;
+  const LUT = new Float32Array(1025);
+  for (let i = 0; i <= 1024; i++) { let t = Math.pow(i/1024, gam); t = (t - .5)*k1 + .5 + br; LUT[i] = (t < 0 ? 0 : t > 1 ? 1 : t)*255; }
+  const lev = v => { let t = (v - black)*span; return t < 0 ? 0 : t > 1 ? 1 : t; };
+  for (let i = 0, j = 0, q = 0; i < N; i++, j += 4, q += 3) {
+    let r, g, b;
+    if (doc) { const bl = .299*bg[q] + .587*bg[q+1] + .114*bg[q+2]; r = rgba[j]/bl*wb[0]; g = rgba[j+1]/bl*wb[1]; b = rgba[j+2]/bl*wb[2]; }
+    else { r = rgba[j]/bg[q]*wb[0]; g = rgba[j+1]/bg[q+1]*wb[1]; b = rgba[j+2]/bg[q+2]*wb[2]; }
+    const L = .299*r + .587*g + .114*b;
+    if (mode === 'gray' || mode === 'bw') {
+      let t = lev(L), v;
+      if (mode === 'bw') { t = (t - .42)/.3; t = t < 0 ? 0 : t > 1 ? 1 : t; t = t*t*(3 - 2*t); t = (t - .5)*k1 + .5 + br; v = (t < 0 ? 0 : t > 1 ? 1 : t)*255; }
+      else v = LUT[(t*1024)|0];
+      out[j] = out[j+1] = out[j+2] = v;
+    } else {
+      const tl = LUT[(lev(L)*1024)|0];
+      const cr = LUT[(lev(r)*1024)|0], cg = LUT[(lev(g)*1024)|0], cb = LUT[(lev(b)*1024)|0];
+      out[j] = tl + (cr - tl)*sat; out[j+1] = tl + (cg - tl)*sat; out[j+2] = tl + (cb - tl)*sat;
+    }
+    out[j+3] = 255;
+  }
+  if (mode === 'auto') kSharpen(out, W, H, .6);
+  kBorder(out, W, H);
+  return out;
+}
+function kClean(rgba, W, H, mode, bright, contrast){ return kRender(rgba, kPrep(rgba, W, H), mode, bright, contrast); }
+function kSharpen(o, W, H, amt){
+  const L = new Float32Array(W*H);
+  for (let i = 0, j = 0; j < L.length; i += 4, j++) L[j] = .299*o[i] + .587*o[i+1] + .114*o[i+2];
+  const B = kBoxBlur(L, W, H, 1);
+  for (let i = 0, j = 0; j < L.length; i += 4, j++) { const d = (L[j] - B[j])*amt; o[i] += d; o[i+1] += d; o[i+2] += d; }
+}
+function kBorder(o, W, H){
+  const m = Math.max(2, Math.round(Math.min(W, H)*.005));
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    if (x >= m && x < W - m && y >= m && y < H - m) { x = W - m - 1; continue; }
+    const i = (y*W + x)*4; o[i] = o[i+1] = o[i+2] = 255;
+  }
 }
 
 /* ---------- Redressement et filtres ---------- */
@@ -626,64 +895,6 @@ function warp(info, c, maxSide){
   }
   return {data:out, W, H, bg:null};
 }
-function maxFilter(a, w, h, r){
-  const t = new Float32Array(a.length), o = new Float32Array(a.length);
-  for (let y = 0; y < h; y++) {
-    const row = y*w;
-    for (let x = 0; x < w; x++) {
-      let m = 0; const x0 = x - r < 0 ? 0 : x - r, x1 = x + r >= w ? w - 1 : x + r;
-      for (let i = x0; i <= x1; i++) if (a[row+i] > m) m = a[row+i];
-      t[row+x] = m;
-    }
-  }
-  for (let x = 0; x < w; x++) {
-    for (let y = 0; y < h; y++) {
-      let m = 0; const y0 = y - r < 0 ? 0 : y - r, y1 = y + r >= h ? h - 1 : y + r;
-      for (let j = y0; j <= y1; j++) if (t[j*w+x] > m) m = t[j*w+x];
-      o[y*w+x] = m;
-    }
-  }
-  return o;
-}
-// Fond du papier sans le texte : on réduit l'image, on « gonfle » les zones claires
-// pour faire disparaître l'encre, puis on lisse. Diviser par ce fond efface ombres et dégradés.
-function bgOf(data, W, H){
-  const f = 4, w = Math.max(4, Math.ceil(W/f)), h = Math.max(4, Math.ceil(H/f));
-  const full = mk(W, H); full.getContext('2d').putImageData(new ImageData(data, W, H), 0, 0);
-  const sm = mk(w, h), sx = sm.getContext('2d', {willReadFrequently:true});
-  sx.imageSmoothingEnabled = true; sx.imageSmoothingQuality = 'high'; sx.drawImage(full, 0, 0, w, h);
-  const px = sx.getImageData(0, 0, w, h), N = w*h;
-  const r = Math.max(3, Math.round(Math.min(w, h)/90));
-  for (let k = 0; k < 3; k++) {
-    let a = new Float32Array(N);
-    for (let i = 0; i < N; i++) a[i] = px.data[i*4+k];
-    a = blur(blur(maxFilter(a, w, h, r), w, h, r), w, h, r);
-    for (let i = 0; i < N; i++) px.data[i*4+k] = a[i];
-  }
-  sx.putImageData(px, 0, 0);
-  const big = mk(W, H), bx = big.getContext('2d', {willReadFrequently:true});
-  bx.imageSmoothingEnabled = true; bx.imageSmoothingQuality = 'high'; bx.drawImage(sm, 0, 0, W, H);
-  return bx.getImageData(0, 0, W, H).data;
-}
-function saturate(o, k){
-  for (let i = 0; i < o.length; i += 4) {
-    const l = .299*o[i] + .587*o[i+1] + .114*o[i+2];
-    o[i] = l + (o[i]-l)*k; o[i+1] = l + (o[i+1]-l)*k; o[i+2] = l + (o[i+2]-l)*k;
-  }
-}
-function sharpen(o, W, H, amt){
-  const L = new Float32Array(W*H);
-  for (let i = 0, j = 0; j < L.length; i += 4, j++) L[j] = .299*o[i] + .587*o[i+1] + .114*o[i+2];
-  const B = blur(L, W, H, 1);
-  for (let i = 0, j = 0; j < L.length; i += 4, j++) { const d = (L[j] - B[j])*amt; o[i] += d; o[i+1] += d; o[i+2] += d; }
-}
-function cleanBorder(o, W, H){
-  const m = Math.max(2, Math.round(Math.min(W, H)*.006));
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-    if (x >= m && x < W - m && y >= m && y < H - m) { x = W - m - 1; continue; }
-    const i = (y*W + x)*4; o[i] = o[i+1] = o[i+2] = 255;
-  }
-}
 function buildLut(mode, br, ct){
   const L = new Uint8ClampedArray(256), k = 1 + ct;
   for (let i = 0; i < 256; i++) {
@@ -698,32 +909,14 @@ function buildLut(mode, br, ct){
   return L;
 }
 function applyFilter(wp, o){
-  const {data, W, H} = wp, out = new Uint8ClampedArray(data.length);
-  const mode = o.filter, lut = buildLut(mode, o.bright, o.contrast);
-  if (mode === 'original') {
+  const {data, W, H} = wp;
+  if (o.filter === 'original') {
+    const out = new Uint8ClampedArray(data.length), lut = buildLut('original', o.bright, o.contrast);
     for (let i = 0; i < data.length; i += 4) { out[i] = lut[data[i]]; out[i+1] = lut[data[i+1]]; out[i+2] = lut[data[i+2]]; out[i+3] = 255; }
-  } else {
-    const bg = wp.bg || (wp.bg = bgOf(data, W, H));
-    if (mode === 'doc' || mode === 'auto') {
-      for (let i = 0; i < data.length; i += 4) {
-        for (let k = 0; k < 3; k++) {
-          const b = bg[i+k] || 1; let c = data[i+k]*255/b; if (c > 255) c = 255;
-          out[i+k] = lut[c|0];
-        }
-        out[i+3] = 255;
-      }
-      if (mode === 'auto') { saturate(out, 1.25); sharpen(out, W, H, .8); }
-    } else {
-      for (let i = 0; i < data.length; i += 4) {
-        const l = .299*data[i] + .587*data[i+1] + .114*data[i+2];
-        const lb = (.299*bg[i] + .587*bg[i+1] + .114*bg[i+2]) || 1;
-        let c = l*255/lb; if (c > 255) c = 255;
-        const v = lut[c|0]; out[i] = v; out[i+1] = v; out[i+2] = v; out[i+3] = 255;
-      }
-    }
-    cleanBorder(out, W, H);
+    return new ImageData(out, W, H);
   }
-  return new ImageData(out, W, H);
+  const P = wp.prep || (wp.prep = kPrep(data, W, H));
+  return new ImageData(kRender(data, P, o.filter, o.bright, o.contrast), W, H);
 }
 function drawResult(canvas, img, W, H, rot){
   const t = mk(W, H); t.getContext('2d').putImageData(img, 0, 0);
